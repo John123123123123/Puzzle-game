@@ -31,9 +31,9 @@ Du kan flytta de forntida sandstensblocken på två smidiga sätt:
 
 ## 🗺️ Tempelkampanjen (3 Olika Nivåer)
 
-* **🏛️ Nivå 1: Soltemplets Ruiner:** Tryckplattor, sandstensblock, giftpilar och den vilda flykten från det rullande stenblocket!
-* **💀 Nivå 2: Den Mörka Katakomben:** Eldfat, spikfällor, dubbla väggspakar och jakt på Obsidian-skarabén.
-* **🪞 Nivå 3: Faraos Spegelsal:** Spegelljusreflektioner mot solkristaller, 4-spelarplattor och Ras Öga.
+* **💀 Nivå 1: Den Mörka Katakomben:** Eldfat, spikfällor, dubbla väggspakar och jakt på Obsidian-skarabén.
+* **🪞 Nivå 2: Faraos Spegelsal:** Spegelljusreflektioner mot solkristaller, 4-spelarplattor och Ras Öga.
+* **🏛️ Nivå 3: Soltemplets Ruiner:** Tryckplattor, sandstensblock, giftpilar och den vilda flykten från det rullande stenblocket!
 
 ---
 
