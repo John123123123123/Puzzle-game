@@ -1,20 +1,43 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=9 format=3 uid="uid://ci74pwy5i3e8j"]
 
 [ext_resource type="Script" path="res://scenes/puzzles/dart_projectile.gd" id="1_dart"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_dart"]
 radius = 0.08
-height = 0.6
+height = 0.65
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dart"]
-albedo_color = Color(0.15, 0.5, 0.2, 1)
-metallic = 0.6
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shaft"]
+albedo_color = Color(0.28, 0.24, 0.18, 1)
+metallic = 0.75
+roughness = 0.4
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_dart"]
-material = SubResource("StandardMaterial3D_dart")
-top_radius = 0.04
+[sub_resource type="CylinderMesh" id="CylinderMesh_shaft"]
+material = SubResource("StandardMaterial3D_shaft")
+top_radius = 0.025
+bottom_radius = 0.025
+height = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tip"]
+albedo_color = Color(0.15, 0.85, 0.3, 1)
+metallic = 0.4
+roughness = 0.2
+emission_enabled = true
+emission = Color(0.2, 0.95, 0.35, 1)
+emission_energy_multiplier = 2.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tip"]
+material = SubResource("StandardMaterial3D_tip")
+top_radius = 0.001
 bottom_radius = 0.04
-height = 0.6
+height = 0.16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fletching"]
+albedo_color = Color(0.18, 0.15, 0.12, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_fletching"]
+material = SubResource("StandardMaterial3D_fletching")
+size = Vector3(0.08, 0.08, 0.02)
 
 [node name="DartProjectile" type="Area3D"]
 collision_layer = 0
@@ -25,6 +48,20 @@ script = ExtResource("1_dart")
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0)
 shape = SubResource("CylinderShape3D_dart")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0)
-mesh = SubResource("CylinderMesh_dart")
+[node name="ShaftMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0.05)
+mesh = SubResource("CylinderMesh_shaft")
+
+[node name="TipMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 4.37114e-08, 1, 0, -1, 4.37114e-08, 0, 0, -0.26)
+mesh = SubResource("CylinderMesh_tip")
+
+[node name="Fletching" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.28)
+mesh = SubResource("BoxMesh_fletching")
+
+[node name="PoisonGlow" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.26)
+light_color = Color(0.2, 0.95, 0.35, 1)
+light_energy = 0.8
+omni_range = 1.6

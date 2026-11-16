@@ -9,8 +9,8 @@ const MAX_PLAYERS: int = 4
 
 # Regular exploration & puzzle levels
 var exploration_levels: Array[String] = [
-	"res://scenes/levels/temple_level_2.tscn", # Nivå 1: Katakomberna (Eldfat, spikar, spakar)
-	"res://scenes/levels/temple_level_3.tscn", # Nivå 2: Solens Spegelsal (Ljusstråle & spegelpussel)
+	"res://scenes/levels/temple_level_2.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
+	"res://scenes/levels/temple_level_3.tscn", # Level 2: Chamber of Mirrors (Light beam & mirror puzzle)
 ]
 
 # The Golden Idol Temple & Giant Boulder Escape is ALWAYS the grand finale (always the last level)

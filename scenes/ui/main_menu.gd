@@ -51,7 +51,7 @@ func _ready() -> void:
 
 func set_player_count(count: int) -> void:
 	selected_count = clampi(count, 1, 4)
-	player_count_label.text = "%d Spelare" % selected_count
+	player_count_label.text = "%d Player" % selected_count if selected_count == 1 else "%d Players" % selected_count
 
 	for i in range(player_cards.size()):
 		var is_active = (i + 1) <= selected_count
@@ -60,13 +60,13 @@ func set_player_count(count: int) -> void:
 			card.modulate = Color(1.0, 1.0, 1.0, 1.0)
 			var status = card.get_node_or_null("VBox/StatusLabel")
 			if status:
-				status.text = "REDO"
+				status.text = "READY"
 				status.modulate = Color(0.3, 1.0, 0.4)
 		else:
 			card.modulate = Color(0.4, 0.4, 0.4, 0.5)
 			var status = card.get_node_or_null("VBox/StatusLabel")
 			if status:
-				status.text = "INAKTIV"
+				status.text = "INACTIVE"
 				status.modulate = Color(0.7, 0.7, 0.7)
 
 func set_selected_level(lvl: int) -> void:

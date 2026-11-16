@@ -102,7 +102,7 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.75, 0.65, 1)
 theme_override_font_sizes/font_size = 17
-text = "Ett 2.5D Isometriskt Pusseläventyr för 1 till 4 Spelare"
+text = "A 2.5D Isometric Co-op Puzzle Adventure for 1 to 4 Players"
 horizontal_alignment = 1
 
 [node name="HSeparator1" type="HSeparator" parent="VBoxContainer"]
@@ -114,7 +114,7 @@ size_flags_horizontal = 4
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
 theme_override_font_sizes/font_size = 18
-text = "VÄLJ ANTAL SPELARE"
+text = "SELECT PLAYER COUNT"
 horizontal_alignment = 1
 
 [node name="QuickButtons" type="HBoxContainer" parent="VBoxContainer"]
@@ -126,25 +126,25 @@ alignment = 1
 custom_minimum_size = Vector2(120, 38)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "1 Spelare"
+text = "1 Player"
 
 [node name="Btn2P" type="Button" parent="VBoxContainer/QuickButtons"]
 custom_minimum_size = Vector2(120, 38)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "2 Spelare"
+text = "2 Players"
 
 [node name="Btn3P" type="Button" parent="VBoxContainer/QuickButtons"]
 custom_minimum_size = Vector2(120, 38)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "3 Spelare"
+text = "3 Players"
 
 [node name="Btn4P" type="Button" parent="VBoxContainer/QuickButtons"]
 custom_minimum_size = Vector2(120, 38)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "4 Spelare"
+text = "4 Players"
 
 [node name="CountSelector" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -162,7 +162,7 @@ custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
 theme_override_font_sizes/font_size = 24
-text = "1 Spelare"
+text = "1 Player"
 horizontal_alignment = 1
 
 [node name="BtnPlus" type="Button" parent="VBoxContainer/CountSelector"]
@@ -194,7 +194,7 @@ horizontal_alignment = 1
 [node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "Spelare 1"
+text = "Player 1"
 horizontal_alignment = 1
 
 [node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
@@ -207,7 +207,7 @@ horizontal_alignment = 1
 [node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "REDO"
+text = "READY"
 horizontal_alignment = 1
 
 [node name="Card2" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
@@ -228,20 +228,20 @@ horizontal_alignment = 1
 [node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "Spelare 2"
+text = "Player 2"
 horizontal_alignment = 1
 
 [node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 0.8)
 theme_override_font_sizes/font_size = 11
-text = "Pilar + Enter / Gamepad 2"
+text = "Arrows + Enter / Gamepad 2"
 horizontal_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "INAKTIV"
+text = "INACTIVE"
 horizontal_alignment = 1
 
 [node name="Card3" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
@@ -262,7 +262,7 @@ horizontal_alignment = 1
 [node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "Spelare 3"
+text = "Player 3"
 horizontal_alignment = 1
 
 [node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
@@ -275,7 +275,7 @@ horizontal_alignment = 1
 [node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "INAKTIV"
+text = "INACTIVE"
 horizontal_alignment = 1
 
 [node name="Card4" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
@@ -296,7 +296,7 @@ horizontal_alignment = 1
 [node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "Spelare 4"
+text = "Player 4"
 horizontal_alignment = 1
 
 [node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
@@ -309,7 +309,7 @@ horizontal_alignment = 1
 [node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "INAKTIV"
+text = "INACTIVE"
 horizontal_alignment = 1
 
 [node name="LevelSelector" type="HBoxContainer" parent="VBoxContainer"]
@@ -321,25 +321,25 @@ alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
 theme_override_font_sizes/font_size = 15
-text = "Startnivå:"
+text = "Starting Level:"
 
 [node name="BtnLvl1" type="Button" parent="VBoxContainer/LevelSelector"]
 custom_minimum_size = Vector2(150, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "1: Katakomberna"
+text = "1: The Catacombs"
 
 [node name="BtnLvl2" type="Button" parent="VBoxContainer/LevelSelector"]
 custom_minimum_size = Vector2(150, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "2: Spegelsalen"
+text = "2: Chamber of Mirrors"
 
 [node name="BtnLvl3" type="Button" parent="VBoxContainer/LevelSelector"]
 custom_minimum_size = Vector2(150, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "3: Guldidolen"
+text = "3: The Golden Idol"
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
 custom_minimum_size = Vector2(300, 52)
@@ -350,11 +350,11 @@ theme_override_colors/font_focus_color = Color(0.05, 0.05, 0.05, 1)
 theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleBoxFlat_start_btn")
-text = "STARTA ÄVENTYRET"
+text = "START ADVENTURE"
 
 [node name="FooterHint" type="Label" parent="VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.65, 0.65, 1)
 theme_override_font_sizes/font_size = 12
-text = "Kamerarotation: Q / R eller Håll Höger Musknapp / Gamepad LB & RB | P2-4 Snabbanslut: Enter / Gamepad A"
+text = "Camera Rotation: Q / R or Hold Right Mouse Button / Gamepad LB & RB | P2-4 Quick Join: Enter / Gamepad A"
 horizontal_alignment = 1

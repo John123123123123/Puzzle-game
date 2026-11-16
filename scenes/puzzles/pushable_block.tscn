@@ -9,16 +9,16 @@ size = Vector3(1.2, 1.2, 1.2)
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_block"]
 render_priority = 0
 shader = ExtResource("2_crate_shader")
-shader_parameter/wood_plank_color = Color(0.55, 0.4, 0.25, 1)
-shader_parameter/wood_frame_color = Color(0.42, 0.29, 0.17, 1)
-shader_parameter/wood_dark = Color(0.24, 0.16, 0.1, 1)
-shader_parameter/metal_color = Color(0.28, 0.25, 0.22, 1)
-shader_parameter/rivet_color = Color(0.72, 0.58, 0.36, 1)
+shader_parameter/wood_plank_color = Color(0.58, 0.44, 0.28, 1)
+shader_parameter/wood_frame_color = Color(0.42, 0.3, 0.18, 1)
+shader_parameter/wood_dark = Color(0.22, 0.14, 0.08, 1)
+shader_parameter/metal_color = Color(0.32, 0.3, 0.28, 1)
+shader_parameter/rivet_color = Color(0.85, 0.72, 0.42, 1)
 shader_parameter/frame_width = 0.12
-shader_parameter/brace_width = 0.055
-shader_parameter/corner_bracket_size = 0.22
-shader_parameter/roughness_wood = 0.8
-shader_parameter/roughness_metal = 0.45
+shader_parameter/brace_width = 0.045
+shader_parameter/corner_size = 0.15
+shader_parameter/roughness_wood = 0.78
+shader_parameter/roughness_metal = 0.42
 
 [sub_resource type="BoxMesh" id="BoxMesh_block"]
 material = SubResource("ShaderMaterial_block")

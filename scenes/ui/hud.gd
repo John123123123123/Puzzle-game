@@ -55,18 +55,23 @@ func register_player(id: int, initial_health: int) -> void:
 
 func update_player_health(id: int, new_health: int) -> void:
 	if player_labels.has(id):
-		player_labels[id].text = _get_heart_string(new_health)
+		var lbl = player_labels[id]
+		lbl.text = _get_heart_string(new_health)
+		# Red flash and punch effect on damage
+		var tween = create_tween()
+		tween.tween_property(lbl, "modulate", Color(2.0, 0.25, 0.25), 0.08)
+		tween.tween_property(lbl, "modulate", Color.WHITE, 0.22)
 
 func _get_heart_string(health: int) -> String:
 	var s = ""
 	for i in range(max(0, health)):
 		s += "❤️"
 	if health <= 0:
-		s = "💀 Besegrad"
+		s = "💀 Defeated"
 	return s
 
 func set_objective(text: String) -> void:
-	objective_label.text = "Uppdrag: " + text
+	objective_label.text = "Objective: " + text
 
 func show_victory(text: String) -> void:
 	banner_label.text = text
@@ -102,21 +107,21 @@ func show_level_complete(level_num: int) -> void:
 	var title = Label.new()
 	var total_lvls = GameManager.get_total_levels() if is_instance_valid(GameManager) and GameManager.has_method("get_total_levels") else 3
 	var is_final = level_num >= total_lvls
-	title.text = "KAMPANJEN KLARAD!" if is_final else "NIVÅ %d KLAR!" % level_num
+	title.text = "CAMPAIGN COMPLETED!" if is_final else "LEVEL %d COMPLETE!" % level_num
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 48 if is_final else 52)
 	title.modulate = Color(1.0, 0.85, 0.2)  # Golden
 
 	# Sub-text
 	var sub = Label.new()
-	sub.text = "Grattis! Guldidolen är bärgad och äventyret är fullbordat!" if is_final else "Templets hemlighet är avslöjad!"
+	sub.text = "Congratulations! The Golden Idol has been secured and the adventure is complete!" if is_final else "The temple's secret has been unveiled!"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 20)
 	sub.modulate = Color(0.9, 0.9, 0.85)
 
 	# Next level button
 	var btn_next = Button.new()
-	btn_next.text = "Slutför Äventyret 🏆" if is_final else "Nästa Nivå  →"
+	btn_next.text = "Complete Adventure 🏆" if is_final else "Next Level  →"
 	btn_next.custom_minimum_size = Vector2(240, 54)
 	btn_next.pressed.connect(func():
 		get_tree().paused = false
@@ -129,7 +134,7 @@ func show_level_complete(level_num: int) -> void:
 
 	# Menu button
 	var btn_menu = Button.new()
-	btn_menu.text = "Tillbaka till Menyn"
+	btn_menu.text = "Back to Menu"
 	btn_menu.custom_minimum_size = Vector2(240, 42)
 	btn_menu.pressed.connect(func():
 		get_tree().paused = false
@@ -192,14 +197,14 @@ func show_game_over() -> void:
 
 	# Subtitle
 	var sub = Label.new()
-	sub.text = "Alla äventyrare har fallit i templet..."
+	sub.text = "All adventurers have perished in the temple..."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 20)
 	sub.modulate = Color(0.85, 0.8, 0.8)
 
 	# Retry button
 	var btn_retry = Button.new()
-	btn_retry.text = "Försök Igen  ↺"
+	btn_retry.text = "Try Again  ↺"
 	btn_retry.custom_minimum_size = Vector2(240, 52)
 	btn_retry.pressed.connect(func():
 		get_tree().paused = false
@@ -211,7 +216,7 @@ func show_game_over() -> void:
 
 	# Menu button
 	var btn_menu = Button.new()
-	btn_menu.text = "Tillbaka till Menyn"
+	btn_menu.text = "Back to Menu"
 	btn_menu.custom_minimum_size = Vector2(240, 42)
 	btn_menu.pressed.connect(func():
 		get_tree().paused = false

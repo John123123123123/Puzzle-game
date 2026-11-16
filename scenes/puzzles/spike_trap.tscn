@@ -1,60 +1,123 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/spike_trap.gd" id="1_spike"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_damage"]
-size = Vector3(1.8, 0.8, 1.8)
+size = Vector3(1.85, 0.9, 1.85)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_grate"]
-albedo_color = Color(0.2, 0.18, 0.16, 1)
-metallic = 0.8
-roughness = 0.6
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone_rim"]
+albedo_color = Color(0.38, 0.32, 0.25, 1)
+roughness = 0.9
 
-[sub_resource type="BoxMesh" id="BoxMesh_grate"]
-material = SubResource("StandardMaterial3D_grate")
-size = Vector3(2.0, 0.08, 2.0)
+[sub_resource type="BoxMesh" id="BoxMesh_rim"]
+material = SubResource("StandardMaterial3D_stone_rim")
+size = Vector3(2.0, 0.12, 2.0)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_spike"]
-albedo_color = Color(0.6, 0.55, 0.5, 1)
-metallic = 0.9
-roughness = 0.3
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_iron_grate"]
+albedo_color = Color(0.16, 0.14, 0.13, 1)
+metallic = 0.85
+roughness = 0.65
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_cone"]
-material = SubResource("StandardMaterial3D_spike")
-top_radius = 0.01
-bottom_radius = 0.08
-height = 0.6
+[sub_resource type="BoxMesh" id="BoxMesh_pit"]
+material = SubResource("StandardMaterial3D_iron_grate")
+size = Vector3(1.78, 0.04, 1.78)
 
-[node name="SpikeTrap" type="Node3D"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_spear"]
+albedo_color = Color(0.72, 0.66, 0.58, 1)
+metallic = 0.96
+roughness = 0.22
+rim_enabled = true
+rim = 0.4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_spear"]
+material = SubResource("StandardMaterial3D_spear")
+top_radius = 0.006
+bottom_radius = 0.07
+height = 0.85
+radial_segments = 4
+
+[node name="SpikeTrap" type="Node3D" groups=["spike_trap"]]
 script = ExtResource("1_spike")
 
-[node name="GrateMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
-mesh = SubResource("BoxMesh_grate")
+[node name="TrapBase" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("BoxMesh_rim")
+
+[node name="PitGrate" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
+mesh = SubResource("BoxMesh_pit")
 
 [node name="SpikesRoot" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.45, 0)
 
 [node name="Spike1" type="MeshInstance3D" parent="SpikesRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.3, -0.5)
-mesh = SubResource("CylinderMesh_cone")
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.675, 0.425, -0.675)
+mesh = SubResource("CylinderMesh_spear")
 
 [node name="Spike2" type="MeshInstance3D" parent="SpikesRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.3, -0.5)
-mesh = SubResource("CylinderMesh_cone")
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.225, 0.425, -0.675)
+mesh = SubResource("CylinderMesh_spear")
 
 [node name="Spike3" type="MeshInstance3D" parent="SpikesRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.3, 0.5)
-mesh = SubResource("CylinderMesh_cone")
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.225, 0.425, -0.675)
+mesh = SubResource("CylinderMesh_spear")
 
 [node name="Spike4" type="MeshInstance3D" parent="SpikesRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.3, 0.5)
-mesh = SubResource("CylinderMesh_cone")
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.675, 0.425, -0.675)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike5" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.675, 0.425, -0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike6" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.225, 0.425, -0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike7" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.225, 0.425, -0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike8" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.675, 0.425, -0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike9" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.675, 0.425, 0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike10" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.225, 0.425, 0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike11" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.225, 0.425, 0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike12" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.675, 0.425, 0.225)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike13" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.675, 0.425, 0.675)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike14" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -0.225, 0.425, 0.675)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike15" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.225, 0.425, 0.675)
+mesh = SubResource("CylinderMesh_spear")
+
+[node name="Spike16" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0.675, 0.425, 0.675)
+mesh = SubResource("CylinderMesh_spear")
 
 [node name="DamageArea" type="Area3D" parent="."]
 collision_layer = 0
 collision_mask = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="DamageArea"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
 shape = SubResource("BoxShape3D_damage")

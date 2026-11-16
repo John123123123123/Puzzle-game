@@ -40,9 +40,9 @@ func _ready() -> void:
 	if hud:
 		var lvl_num = GameManager.current_level_index if is_instance_valid(GameManager) else 3
 		if count == 1:
-			hud.set_objective("Nivå %d (FINAL): Lös templets gåtor och finn den mytomspunna Guldidolen!" % lvl_num)
+			hud.set_objective("Level %d (FINALE): Solve the temple riddles and find the mythical Golden Idol!" % lvl_num)
 		else:
-			hud.set_objective("Nivå %d (FINAL): Samarbeta och ta er djupt in i templet till Guldidolen!" % lvl_num)
+			hud.set_objective("Level %d (FINALE): Cooperate to venture deep into the temple to reach the Golden Idol!" % lvl_num)
 
 	var spawn_markers = [player_spawn_1, player_spawn_2, player_spawn_3, player_spawn_4]
 	for i in range(count):
@@ -127,11 +127,11 @@ func _on_golden_idol_taken(by_player: Player) -> void:
 	is_escaping = true
 
 	if players.size() <= 1:
-		hud.set_objective("VARNING: TEMPELKOLLAPS! Fly undan stenblocket och spring till ingången!")
-		hud.show_victory("GULDIDOLEN ÄR DIN!\nSPRING MOT INGÅNGEN!")
+		hud.set_objective("WARNING: TEMPLE COLLAPSE! Escape the boulder and run to the entrance!")
+		hud.show_victory("THE GOLDEN IDOL IS YOURS!\nRUN TO THE ENTRANCE!")
 	else:
-		hud.set_objective("VARNING: TEMPELKOLLAPS! Alla spelare spring mot ingången!")
-		hud.show_victory("GULDIDOLEN ÄR ER!\nALLA TILLBAKA TILL INGÅNGEN!")
+		hud.set_objective("WARNING: TEMPLE COLLAPSE! All players run to the entrance!")
+		hud.show_victory("THE GOLDEN IDOL IS YOURS!\nEVERYONE BACK TO THE ENTRANCE!")
 
 	# 1. Sink the pedestal into the ground
 	_sink_pedestal()

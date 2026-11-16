@@ -3,7 +3,7 @@ class_name LevelExit
 
 signal level_completed()
 
-@export var prompt_text: String = "NIVÅ KLARAD!\nPORTEN TILL NÄSTA KAMMARE ÄR ÖPPEN!"
+@export var prompt_text: String = "LEVEL COMPLETE!\nTHE GATE TO THE NEXT CHAMBER IS OPEN!"
 @export var is_unlocked: bool = true
 
 var triggered: bool = false

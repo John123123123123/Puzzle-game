@@ -16,6 +16,11 @@ var carried_item: Node3D = null
 var current_interactable: Node3D = null
 var is_invulnerable: bool = false
 var is_whipping: bool = false
+var is_staggering: bool = false
+
+var hurt_audio: AudioStreamPlayer3D = null
+var death_audio: AudioStreamPlayer3D = null
+var hurt_light: OmniLight3D = null
 
 # Player ring indicator colors
 const PLAYER_COLORS: Array[Color] = [
@@ -93,6 +98,28 @@ func _ready() -> void:
 	# Interaction area setup
 	interaction_area.area_entered.connect(_on_interaction_area_entered)
 	interaction_area.area_exited.connect(_on_interaction_area_exited)
+
+	# Damage flash light
+	hurt_light = OmniLight3D.new()
+	hurt_light.light_color = Color(1.0, 0.15, 0.15)
+	hurt_light.light_energy = 0.0
+	hurt_light.omni_range = 3.2
+	hurt_light.position = Vector3(0, 0.9, 0)
+	add_child(hurt_light)
+
+	# Damage hurt sound
+	hurt_audio = AudioStreamPlayer3D.new()
+	hurt_audio.stream = _create_hurt_sound()
+	hurt_audio.unit_size = 5.5
+	hurt_audio.max_distance = 25.0
+	add_child(hurt_audio)
+
+	# Death sound
+	death_audio = AudioStreamPlayer3D.new()
+	death_audio.stream = _create_death_sound()
+	death_audio.unit_size = 7.0
+	death_audio.max_distance = 30.0
+	add_child(death_audio)
 
 func _apply_player_identity() -> void:
 	var idx = clampi(player_id - 1, 0, 3)
@@ -199,6 +226,9 @@ func _handle_movement(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, friction * delta)
 
 func _update_animation(delta: float) -> void:
+	if is_staggering or current_health <= 0:
+		return
+
 	var horizontal_speed = Vector2(velocity.x, velocity.z).length()
 	var is_moving = horizontal_speed > 0.2 and is_on_floor()
 
@@ -309,6 +339,7 @@ func use_whip() -> void:
 	var space_state = get_world_3d().direct_space_state
 	var query = PhysicsRayQueryParameters3D.create(start_pt, target_pt)
 	query.collision_mask = 5 # Layer 1 (Environment) and Layer 3 (Interactables)
+	query.collide_with_areas = true
 	query.exclude = [self]
 
 	var result = space_state.intersect_ray(query)
@@ -362,27 +393,119 @@ func take_damage(amount: int = 1) -> void:
 	current_health -= amount
 	health_changed.emit(current_health)
 
+	if is_instance_valid(hurt_audio):
+		hurt_audio.pitch_scale = randf_range(0.94, 1.06)
+		hurt_audio.play()
+
 	if current_health <= 0:
 		current_health = 0
 		_die()
 		return
 
-	# Knockback and temporary invulnerability
+	# Start stagger & invulnerability
 	is_invulnerable = true
-	var tween = create_tween()
-	tween.tween_property(mesh_root, "scale", Vector3(1.2, 0.8, 1.2), 0.1)
-	tween.tween_property(mesh_root, "scale", Vector3.ONE, 0.15)
+	is_staggering = true
+
+	# 1. Flash red light
+	if is_instance_valid(hurt_light):
+		hurt_light.light_energy = 3.5
+		var light_tween = create_tween()
+		light_tween.tween_property(hurt_light, "light_energy", 0.0, 0.3)
+
+	# 2. Dramatic stagger / flinch animation
+	var stagger_tween = create_tween().set_parallel(true)
+	stagger_tween.tween_property(torso, "rotation:x", deg_to_rad(-24.0), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	stagger_tween.tween_property(head, "rotation:x", deg_to_rad(30.0), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	stagger_tween.tween_property(arm_l, "rotation:x", deg_to_rad(-45.0), 0.1)
+	stagger_tween.tween_property(arm_r, "rotation:x", deg_to_rad(-45.0), 0.1)
+	stagger_tween.tween_property(mesh_root, "position:y", 0.18, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	stagger_tween.tween_property(mesh_root, "scale", Vector3(1.15, 0.88, 1.15), 0.08)
+
+	# Return to normal stance
+	stagger_tween.chain().tween_property(torso, "rotation:x", 0.0, 0.22)
+	stagger_tween.tween_property(head, "rotation:x", 0.0, 0.22)
+	stagger_tween.tween_property(mesh_root, "position:y", 0.0, 0.22)
+	stagger_tween.tween_property(mesh_root, "scale", Vector3.ONE, 0.22)
+
+	# Brief knockback impulse away from facing
+	velocity += -transform.basis.z * 3.5 + Vector3.UP * 1.5
+
+	# End stagger after 0.32s
+	get_tree().create_timer(0.32).timeout.connect(func():
+		is_staggering = false
+	)
+
+	# 3. Invulnerability blinking / flickering for 1.0s
+	var flicker_tween = create_tween().set_loops(6)
+	flicker_tween.tween_property(mesh_root, "visible", false, 0.08)
+	flicker_tween.tween_property(mesh_root, "visible", true, 0.08)
+
 	await get_tree().create_timer(1.0).timeout
+	mesh_root.visible = true
 	is_invulnerable = false
 
 func _die() -> void:
 	drop_item()
 	is_invulnerable = true
+	is_staggering = true
+
+	if is_instance_valid(death_audio):
+		death_audio.pitch_scale = randf_range(0.95, 1.05)
+		death_audio.play()
+
+	if is_instance_valid(hurt_light):
+		hurt_light.light_energy = 5.0
+		var light_tween = create_tween()
+		light_tween.tween_property(hurt_light, "light_energy", 0.0, 0.5)
+
 	# Dramatic fall over animation
 	var tween = create_tween().set_parallel(true)
 	tween.tween_property(mesh_root, "rotation:z", deg_to_rad(85.0), 0.35).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	tween.tween_property(mesh_root, "position:y", 0.12, 0.35)
 	player_died.emit(self)
+
+func _create_hurt_sound() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.25
+	var num_samples = int(sample_rate * duration)
+	var data = PackedByteArray()
+	data.resize(num_samples)
+	for i in range(num_samples):
+		var t = float(i) / float(sample_rate)
+		# Flesh / leather impact thud + sharp pain transient + vocal groan
+		var thud = sin(t * 115.0 * TAU) * exp(-t * 16.0)
+		var punch = (sin(t * 1800.0 * TAU) if t < 0.02 else 0.0) * 0.5
+		var pitch = 380.0 - t * 450.0
+		var vocal = sin(t * pitch * TAU + sin(t * 65.0 * TAU) * 1.5) * exp(-t * 10.0) * 0.6
+		var sample = clampf((thud * 0.5 + punch + vocal) * 0.9, -1.0, 1.0)
+		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
+
+	var stream = AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_8_BITS
+	stream.mix_rate = sample_rate
+	stream.data = data
+	return stream
+
+func _create_death_sound() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.55
+	var num_samples = int(sample_rate * duration)
+	var data = PackedByteArray()
+	data.resize(num_samples)
+	for i in range(num_samples):
+		var t = float(i) / float(sample_rate)
+		# Heavy collapse groan + decaying sigh
+		var pitch = 280.0 - t * 240.0
+		var groan = sin(t * pitch * TAU + sin(t * 40.0 * TAU) * 2.0) * exp(-t * 5.0) * 0.6
+		var thud = sin(t * 65.0 * TAU) * exp(-t * 8.0) * 0.4
+		var sample = clampf(groan + thud, -1.0, 1.0)
+		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
+
+	var stream = AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_8_BITS
+	stream.mix_rate = sample_rate
+	stream.data = data
+	return stream
 
 func _on_interaction_area_entered(area: Area3D) -> void:
 	var target = area.get_parent()

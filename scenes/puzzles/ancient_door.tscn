@@ -1,32 +1,30 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/ancient_door.gd" id="1_door"]
-[ext_resource type="Shader" path="res://shaders/glowing_rune_glyph.gdshader" id="2_rune"]
+[ext_resource type="Shader" path="res://shaders/ancient_temple_door.gdshader" id="2_door_shader"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_door"]
 size = Vector3(3.8, 4.2, 0.6)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_door"]
-albedo_color = Color(0.32, 0.28, 0.23, 1)
-roughness = 0.88
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_door"]
+render_priority = 0
+shader = ExtResource("2_door_shader")
+shader_parameter/stone_color = Color(0.42, 0.35, 0.27, 1)
+shader_parameter/stone_dark = Color(0.22, 0.17, 0.12, 1)
+shader_parameter/stone_highlight = Color(0.6, 0.52, 0.42, 1)
+shader_parameter/bronze_trim = Color(0.72, 0.56, 0.28, 1)
+shader_parameter/rune_glow_color = Color(1, 0.82, 0.35, 1)
+shader_parameter/emission_energy = 3.5
+shader_parameter/pulse_speed = 2.2
+shader_parameter/open_glow = 0.0
+shader_parameter/roughness_stone = 0.86
+shader_parameter/roughness_bronze = 0.32
 
 [sub_resource type="BoxMesh" id="BoxMesh_door"]
-material = SubResource("StandardMaterial3D_door")
+material = SubResource("ShaderMaterial_door")
 size = Vector3(3.8, 4.2, 0.6)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_glyph"]
-render_priority = 0
-shader = ExtResource("2_rune")
-shader_parameter/base_color = Color(0.2, 0.18, 0.15, 1)
-shader_parameter/rune_glow_color = Color(0.2, 0.85, 1, 1)
-shader_parameter/pulse_speed = 2.5
-shader_parameter/emission_energy = 3.2
-
-[sub_resource type="QuadMesh" id="QuadMesh_glyph"]
-material = SubResource("ShaderMaterial_glyph")
-size = Vector2(1.6, 1.6)
-
-[node name="AncientDoor" type="StaticBody3D"]
+[node name="AncientDoor" type="StaticBody3D" groups=["ancient_door"]]
 collision_layer = 1
 collision_mask = 3
 script = ExtResource("1_door")
@@ -39,18 +37,18 @@ shape = SubResource("BoxShape3D_door")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
 mesh = SubResource("BoxMesh_door")
 
-[node name="RuneGlyphFront" type="MeshInstance3D" parent="MeshInstance3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0.31)
-mesh = SubResource("QuadMesh_glyph")
-
-[node name="RuneGlyphBack" type="MeshInstance3D" parent="MeshInstance3D"]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0.1, -0.31)
-mesh = SubResource("QuadMesh_glyph")
-
 [node name="RuneLight" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0.5)
-light_color = Color(0.3, 0.85, 1, 1)
-light_energy = 0.5
-omni_range = 4.5
-omni_attenuation = 0.8
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0.6)
+light_color = Color(1, 0.82, 0.38, 1)
+light_energy = 0.8
+omni_range = 5.0
+omni_attenuation = 0.75
+shadow_enabled = true
+
+[node name="RuneLightBack" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, -0.6)
+light_color = Color(1, 0.82, 0.38, 1)
+light_energy = 0.8
+omni_range = 5.0
+omni_attenuation = 0.75
 shadow_enabled = true

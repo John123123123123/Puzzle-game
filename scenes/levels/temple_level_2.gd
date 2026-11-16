@@ -25,7 +25,7 @@ var is_game_over: bool = false
 var level_complete: bool = false
 
 func _ready() -> void:
-	hud.set_objective("Nivå 1: Tänd eldfaten och ta er genom katakomberna!")
+	hud.set_objective("Level 1: Light the braziers and navigate the catacombs!")
 
 	# Spawn players based on GameManager
 	var count = 1

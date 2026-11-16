@@ -292,6 +292,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 0.1, 2)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 0.1, 2)
 
 [node name="LevelExit" parent="." unique_id=699423382 instance=ExtResource("9_exit")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -16)
-prompt_text = "NIVÅ 2 KLARAD!
-VIDARE MOT GULDIDOLENS TEMPEL..."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -20.368065)
+prompt_text = "LEVEL 2 COMPLETE!
+ONWARD TO THE TEMPLE OF THE GOLDEN IDOL..."

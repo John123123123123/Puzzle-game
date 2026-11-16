@@ -26,7 +26,7 @@ var is_game_over: bool = false
 var level_complete: bool = false
 
 func _ready() -> void:
-	hud.set_objective("Nivå 2: Rikta solstrålen genom speglarna för att bryta sigillet!")
+	hud.set_objective("Level 2: Direct the sunbeam through the mirrors to break the seal!")
 
 	var count = 1
 	if is_instance_valid(GameManager):
