@@ -57,8 +57,4 @@ Du kan flytta de forntida sandstensblocken på två smidiga sätt:
 
 ---
 
-## 🚀 Hur du startar i Godot 4.7
 
-1. Öppna **Godot Engine 4.7**.
-2. Öppna projektet `D:\Puzzle game`.
-3. Tryck på **F5** för att starta spelet och testa att flytta stenblocket!
