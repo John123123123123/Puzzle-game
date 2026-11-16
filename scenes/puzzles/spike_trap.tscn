@@ -1,0 +1,60 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/spike_trap.gd" id="1_spike"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_damage"]
+size = Vector3(1.8, 0.8, 1.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_grate"]
+albedo_color = Color(0.2, 0.18, 0.16, 1)
+metallic = 0.8
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_grate"]
+material = SubResource("StandardMaterial3D_grate")
+size = Vector3(2.0, 0.08, 2.0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_spike"]
+albedo_color = Color(0.6, 0.55, 0.5, 1)
+metallic = 0.9
+roughness = 0.3
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_cone"]
+material = SubResource("StandardMaterial3D_spike")
+top_radius = 0.01
+bottom_radius = 0.08
+height = 0.6
+
+[node name="SpikeTrap" type="Node3D"]
+script = ExtResource("1_spike")
+
+[node name="GrateMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("BoxMesh_grate")
+
+[node name="SpikesRoot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.4, 0)
+
+[node name="Spike1" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.3, -0.5)
+mesh = SubResource("CylinderMesh_cone")
+
+[node name="Spike2" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.3, -0.5)
+mesh = SubResource("CylinderMesh_cone")
+
+[node name="Spike3" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.3, 0.5)
+mesh = SubResource("CylinderMesh_cone")
+
+[node name="Spike4" type="MeshInstance3D" parent="SpikesRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.3, 0.5)
+mesh = SubResource("CylinderMesh_cone")
+
+[node name="DamageArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DamageArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+shape = SubResource("BoxShape3D_damage")

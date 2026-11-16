@@ -1,0 +1,360 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/main_menu.gd" id="1_menu"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.08, 0.07, 0.1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_p1"]
+bg_color = Color(0.25, 0.12, 0.1, 0.85)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.85, 0.25, 0.2, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_p2"]
+bg_color = Color(0.1, 0.18, 0.28, 0.85)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.5, 0.9, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_p3"]
+bg_color = Color(0.1, 0.24, 0.12, 0.85)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.75, 0.3, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_p4"]
+bg_color = Color(0.26, 0.22, 0.08, 0.85)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.9, 0.75, 0.15, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_btn"]
+bg_color = Color(0.85, 0.65, 0.15, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_font_sizes/font_size = 44
+text = "RAIDERS OF THE LOST TEMPLE"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.75, 0.65, 1)
+theme_override_font_sizes/font_size = 17
+text = "Ett 2.5D Isometriskt Pusseläventyr för 1 till 4 Spelare"
+horizontal_alignment = 1
+
+[node name="HSeparator1" type="HSeparator" parent="VBoxContainer"]
+custom_minimum_size = Vector2(550, 8)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="SelectPrompt" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+theme_override_font_sizes/font_size = 18
+text = "VÄLJ ANTAL SPELARE"
+horizontal_alignment = 1
+
+[node name="QuickButtons" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Btn1P" type="Button" parent="VBoxContainer/QuickButtons"]
+custom_minimum_size = Vector2(120, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "1 Spelare"
+
+[node name="Btn2P" type="Button" parent="VBoxContainer/QuickButtons"]
+custom_minimum_size = Vector2(120, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "2 Spelare"
+
+[node name="Btn3P" type="Button" parent="VBoxContainer/QuickButtons"]
+custom_minimum_size = Vector2(120, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "3 Spelare"
+
+[node name="Btn4P" type="Button" parent="VBoxContainer/QuickButtons"]
+custom_minimum_size = Vector2(120, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "4 Spelare"
+
+[node name="CountSelector" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="BtnMinus" type="Button" parent="VBoxContainer/CountSelector"]
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "◀"
+
+[node name="PlayerCountLabel" type="Label" parent="VBoxContainer/CountSelector"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 24
+text = "1 Spelare"
+horizontal_alignment = 1
+
+[node name="BtnPlus" type="Button" parent="VBoxContainer/CountSelector"]
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "▶"
+
+[node name="CardsContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Card1" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
+custom_minimum_size = Vector2(160, 135)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_p1")
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/CardsContainer/Card1"]
+layout_mode = 2
+alignment = 1
+
+[node name="IconLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "🤠"
+horizontal_alignment = 1
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Spelare 1"
+horizontal_alignment = 1
+
+[node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "WASD + E / Gamepad 1"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card1/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "REDO"
+horizontal_alignment = 1
+
+[node name="Card2" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
+custom_minimum_size = Vector2(160, 135)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_p2")
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/CardsContainer/Card2"]
+layout_mode = 2
+alignment = 1
+
+[node name="IconLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "🧭"
+horizontal_alignment = 1
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Spelare 2"
+horizontal_alignment = 1
+
+[node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "Pilar + Enter / Gamepad 2"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card2/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "INAKTIV"
+horizontal_alignment = 1
+
+[node name="Card3" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
+custom_minimum_size = Vector2(160, 135)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_p3")
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/CardsContainer/Card3"]
+layout_mode = 2
+alignment = 1
+
+[node name="IconLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "🌿"
+horizontal_alignment = 1
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Spelare 3"
+horizontal_alignment = 1
+
+[node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "Gamepad 3"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card3/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "INAKTIV"
+horizontal_alignment = 1
+
+[node name="Card4" type="PanelContainer" parent="VBoxContainer/CardsContainer"]
+custom_minimum_size = Vector2(160, 135)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_p4")
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/CardsContainer/Card4"]
+layout_mode = 2
+alignment = 1
+
+[node name="IconLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "📜"
+horizontal_alignment = 1
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Spelare 4"
+horizontal_alignment = 1
+
+[node name="ControlLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "Gamepad 4"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer/CardsContainer/Card4/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "INAKTIV"
+horizontal_alignment = 1
+
+[node name="LevelSelector" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="LevelPrompt" type="Label" parent="VBoxContainer/LevelSelector"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
+theme_override_font_sizes/font_size = 15
+text = "Startnivå:"
+
+[node name="BtnLvl1" type="Button" parent="VBoxContainer/LevelSelector"]
+custom_minimum_size = Vector2(150, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "1: Katakomberna"
+
+[node name="BtnLvl2" type="Button" parent="VBoxContainer/LevelSelector"]
+custom_minimum_size = Vector2(150, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "2: Spegelsalen"
+
+[node name="BtnLvl3" type="Button" parent="VBoxContainer/LevelSelector"]
+custom_minimum_size = Vector2(150, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "3: Guldidolen"
+
+[node name="StartButton" type="Button" parent="VBoxContainer"]
+custom_minimum_size = Vector2(300, 52)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.1, 0.08, 0.05, 1)
+theme_override_colors/font_focus_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_start_btn")
+text = "STARTA ÄVENTYRET"
+
+[node name="FooterHint" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.65, 0.65, 1)
+theme_override_font_sizes/font_size = 12
+text = "Kamerarotation: Q / R eller Håll Höger Musknapp / Gamepad LB & RB | P2-4 Snabbanslut: Enter / Gamepad A"
+horizontal_alignment = 1

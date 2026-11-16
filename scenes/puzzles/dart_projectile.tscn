@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/dart_projectile.gd" id="1_dart"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_dart"]
+radius = 0.08
+height = 0.6
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dart"]
+albedo_color = Color(0.15, 0.5, 0.2, 1)
+metallic = 0.6
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_dart"]
+material = SubResource("StandardMaterial3D_dart")
+top_radius = 0.04
+bottom_radius = 0.04
+height = 0.6
+
+[node name="DartProjectile" type="Area3D"]
+collision_layer = 0
+collision_mask = 7
+script = ExtResource("1_dart")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0)
+shape = SubResource("CylinderShape3D_dart")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0)
+mesh = SubResource("CylinderMesh_dart")

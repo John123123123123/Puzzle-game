@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Shader" path="res://shaders/light_shaft.gdshader" id="1_shaft"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_beam"]
+render_priority = 0
+shader = ExtResource("1_shaft")
+shader_parameter/beam_color = Color(1, 0.9, 0.65, 0.28)
+shader_parameter/falloff_power = 2.2
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_cone"]
+material = SubResource("ShaderMaterial_beam")
+top_radius = 0.5
+bottom_radius = 2.2
+height = 8.0
+radial_segments = 16
+rings = 1
+cap_top = false
+cap_bottom = false
+
+[node name="SkylightBeam" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.0, 0)
+mesh = SubResource("CylinderMesh_cone")

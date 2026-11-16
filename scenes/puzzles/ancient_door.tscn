@@ -1,0 +1,56 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/ancient_door.gd" id="1_door"]
+[ext_resource type="Shader" path="res://shaders/glowing_rune_glyph.gdshader" id="2_rune"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_door"]
+size = Vector3(3.8, 4.2, 0.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_door"]
+albedo_color = Color(0.32, 0.28, 0.23, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="BoxMesh_door"]
+material = SubResource("StandardMaterial3D_door")
+size = Vector3(3.8, 4.2, 0.6)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glyph"]
+render_priority = 0
+shader = ExtResource("2_rune")
+shader_parameter/base_color = Color(0.2, 0.18, 0.15, 1)
+shader_parameter/rune_glow_color = Color(0.2, 0.85, 1, 1)
+shader_parameter/pulse_speed = 2.5
+shader_parameter/emission_energy = 3.2
+
+[sub_resource type="QuadMesh" id="QuadMesh_glyph"]
+material = SubResource("ShaderMaterial_glyph")
+size = Vector2(1.6, 1.6)
+
+[node name="AncientDoor" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 3
+script = ExtResource("1_door")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+shape = SubResource("BoxShape3D_door")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+mesh = SubResource("BoxMesh_door")
+
+[node name="RuneGlyphFront" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0.31)
+mesh = SubResource("QuadMesh_glyph")
+
+[node name="RuneGlyphBack" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0.1, -0.31)
+mesh = SubResource("QuadMesh_glyph")
+
+[node name="RuneLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0.5)
+light_color = Color(0.3, 0.85, 1, 1)
+light_energy = 0.5
+omni_range = 4.5
+omni_attenuation = 0.8
+shadow_enabled = true

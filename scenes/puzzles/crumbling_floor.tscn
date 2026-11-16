@@ -1,0 +1,36 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/crumbling_floor.gd" id="1_floor"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crumb"]
+albedo_color = Color(0.48, 0.4, 0.32, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_crumb"]
+material = SubResource("StandardMaterial3D_crumb")
+size = Vector3(2.0, 0.25, 2.0)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(2.0, 0.25, 2.0)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_trigger"]
+size = Vector3(1.8, 0.4, 1.8)
+
+[node name="CrumblingFloor" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 6
+script = ExtResource("1_floor")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_crumb")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="TriggerArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 6
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TriggerArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+shape = SubResource("BoxShape3D_trigger")

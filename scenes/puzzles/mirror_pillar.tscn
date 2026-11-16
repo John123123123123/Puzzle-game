@@ -1,0 +1,143 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/mirror_pillar.gd" id="1_mirror"]
+[ext_resource type="Shader" path="res://shaders/light_shaft.gdshader" id="2_shaft"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_root"]
+height = 1.4
+radius = 0.55
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pedestal"]
+albedo_color = Color(0.42, 0.36, 0.28, 1)
+roughness = 0.88
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_base"]
+material = SubResource("StandardMaterial3D_pedestal")
+top_radius = 0.48
+bottom_radius = 0.55
+height = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bronze_ring"]
+albedo_color = Color(0.65, 0.52, 0.25, 1)
+metallic = 0.85
+roughness = 0.35
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_ring"]
+material = SubResource("StandardMaterial3D_bronze_ring")
+top_radius = 0.50
+bottom_radius = 0.50
+height = 0.08
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mirror_gold"]
+albedo_color = Color(1.0, 0.88, 0.45, 1)
+metallic = 0.98
+roughness = 0.08
+emission_enabled = false
+emission = Color(1, 0.92, 0.6, 1)
+emission_energy_multiplier = 1.8
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_mirror_disc"]
+material = SubResource("StandardMaterial3D_mirror_gold")
+top_radius = 0.42
+bottom_radius = 0.42
+height = 0.04
+radial_segments = 24
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_core_beam"]
+shading_mode = 0
+albedo_color = Color(1.0, 0.98, 0.82, 0.95)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_core"]
+material = SubResource("StandardMaterial3D_core_beam")
+top_radius = 0.045
+bottom_radius = 0.045
+height = 8.0
+radial_segments = 12
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aura"]
+render_priority = 0
+shader = ExtResource("2_shaft")
+shader_parameter/beam_color = Color(1, 0.92, 0.65, 0.35)
+shader_parameter/falloff_power = 2.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_aura"]
+material = SubResource("ShaderMaterial_aura")
+top_radius = 0.14
+bottom_radius = 0.14
+height = 8.0
+radial_segments = 16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flare"]
+shading_mode = 0
+albedo_color = Color(1, 0.95, 0.7, 0.85)
+
+[sub_resource type="SphereMesh" id="SphereMesh_flare"]
+material = SubResource("StandardMaterial3D_flare")
+radius = 0.14
+height = 0.28
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 1.6
+
+[node name="MirrorPillar" type="StaticBody3D" groups=["interactable", "mirror"]]
+collision_layer = 1
+collision_mask = 6
+script = ExtResource("1_mirror")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("CylinderShape3D_root")
+
+[node name="BaseMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+mesh = SubResource("CylinderMesh_base")
+
+[node name="BronzeRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.82, 0)
+mesh = SubResource("CylinderMesh_ring")
+
+[node name="PillarTop" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+
+[node name="MirrorFrame" type="Node3D" parent="PillarTop"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0.1, 0)
+
+[node name="MirrorDisc" type="MeshInstance3D" parent="PillarTop/MirrorFrame"]
+mesh = SubResource("CylinderMesh_mirror_disc")
+
+[node name="MirrorLight" type="OmniLight3D" parent="PillarTop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+visible = false
+light_color = Color(1, 0.92, 0.65, 1)
+light_energy = 2.2
+omni_range = 3.5
+
+[node name="BeamPivot" type="Node3D" parent="PillarTop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+visible = false
+
+[node name="CoreBeam" type="MeshInstance3D" parent="PillarTop/BeamPivot"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -4)
+mesh = SubResource("CylinderMesh_core")
+
+[node name="AuraBeam" type="MeshInstance3D" parent="PillarTop/BeamPivot"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -4)
+mesh = SubResource("CylinderMesh_aura")
+
+[node name="ImpactLight" type="OmniLight3D" parent="PillarTop/BeamPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8)
+light_color = Color(1, 0.94, 0.7, 1)
+light_energy = 2.4
+omni_range = 4.2
+
+[node name="ImpactFlare" type="MeshInstance3D" parent="PillarTop/BeamPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8)
+mesh = SubResource("SphereMesh_flare")
+
+[node name="InteractionArea" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("SphereShape3D_interact")
