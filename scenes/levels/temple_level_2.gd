@@ -19,6 +19,7 @@ var lit_braziers: int = 0
 func _ready() -> void:
 	super._ready()
 	hud.set_objective("Level 1: Light the braziers (0/3) and navigate the catacombs!")
+	hud.show_controls_hint()
 	spawn_initial_players(get_configured_player_count(1))
 
 	# Connect Brazier puzzle

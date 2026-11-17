@@ -52,6 +52,7 @@ var camera_sensitivity: float = 1.0
 var camera_shake: bool = true
 var show_interact_prompts: bool = true
 var show_timer: bool = true
+var show_progression_indicators: bool = false
 
 # Gamepad
 var gamepad_deadzone: float = 0.25
@@ -100,6 +101,7 @@ func load_settings() -> void:
 	camera_shake = cfg.get_value("game", "camera_shake", true)
 	show_interact_prompts = cfg.get_value("game", "show_interact_prompts", true)
 	show_timer = cfg.get_value("game", "show_timer", true)
+	show_progression_indicators = cfg.get_value("game", "show_progression_indicators", false)
 
 	gamepad_deadzone = cfg.get_value("gamepad", "gamepad_deadzone", 0.25)
 	invert_camera_x = cfg.get_value("gamepad", "invert_camera_x", false)
@@ -134,6 +136,7 @@ func save_settings() -> void:
 	cfg.set_value("game", "camera_shake", camera_shake)
 	cfg.set_value("game", "show_interact_prompts", show_interact_prompts)
 	cfg.set_value("game", "show_timer", show_timer)
+	cfg.set_value("game", "show_progression_indicators", show_progression_indicators)
 
 	cfg.set_value("gamepad", "gamepad_deadzone", gamepad_deadzone)
 	cfg.set_value("gamepad", "invert_camera_x", invert_camera_x)
@@ -290,6 +293,7 @@ func reset_to_defaults() -> void:
 	camera_shake = true
 	show_interact_prompts = true
 	show_timer = true
+	show_progression_indicators = false
 	gamepad_deadzone = 0.25
 	invert_camera_x = false
 	controller_rumble = true

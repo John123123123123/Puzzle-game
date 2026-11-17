@@ -1,6 +1,8 @@
 extends StaticBody3D
 class_name AncientDoor
 
+signal door_opened(door: AncientDoor)
+
 @export var required_triggers: int = 1
 @export var open_height: float = 4.8
 @export var open_duration: float = 1.0
@@ -69,6 +71,7 @@ func force_open_permanent() -> void:
 	if not is_open:
 		is_open = true
 		_animate_door(true)
+		door_opened.emit(self)
 	# Immediately clear collision so boulder and players glide through
 	if is_instance_valid(collision_shape):
 		collision_shape.set_deferred("disabled", true)
@@ -84,6 +87,7 @@ func _evaluate_door_state() -> void:
 		if not is_open:
 			is_open = true
 			_animate_door(true)
+			door_opened.emit(self)
 		if stays_open:
 			required_triggers = 0 # Locks it open permanently once unlocked
 	elif not stays_open:

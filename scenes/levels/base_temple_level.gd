@@ -13,12 +13,26 @@ var player_scene = preload("res://scenes/characters/player.tscn")
 var scarab_scene = preload("res://scenes/puzzles/collectible_scarab.tscn")
 var is_game_over: bool = false
 var level_complete: bool = false
+var latest_checkpoint_pos: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
+	if is_instance_valid(player_spawn_1):
+		latest_checkpoint_pos = player_spawn_1.global_position
+	for door in get_tree().get_nodes_in_group("ancient_door"):
+		if door.has_signal("door_opened"):
+			door.door_opened.connect(_on_door_opened)
 	if is_instance_valid(AudioManager):
 		AudioManager.start_ambient_temple()
 	if is_instance_valid(SettingsManager):
 		SettingsManager.apply_environment()
+
+func _on_door_opened(door: Node3D) -> void:
+	if is_instance_valid(door):
+		latest_checkpoint_pos = door.global_position + Vector3(0.0, 0.1, 0.0)
+
+## Virtual hook overridden by levels that scale door triggers on co-op drop-in.
+func on_player_joined(_total_players: int) -> void:
+	pass
 
 func spawn_scarabs(positions: Array[Vector3]) -> void:
 	for pos in positions:
@@ -41,13 +55,12 @@ func spawn_initial_players(count: int) -> void:
 		spawn_player(id, pos)
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Drop-in join during gameplay
+	# Drop-in join during gameplay at latest unlocked gate / checkpoint
 	for id in range(1, 5):
 		var prefix = "p%d_" % id
 		if not players.has(id):
 			if event.is_action_pressed(prefix + "interact") or event.is_action_pressed(prefix + "action"):
-				var sp = get_node_or_null("SpawnPoints/Spawn%d" % id)
-				var pos = sp.global_position if sp else player_spawn_1.global_position + Vector3(id * 1.0, 0, 0)
+				var pos := latest_checkpoint_pos + Vector3((id - 1) * 0.6, 0.0, 0.6)
 				spawn_player(id, pos)
 
 func spawn_player(id: int, pos: Vector3) -> Player:
@@ -69,9 +82,30 @@ func spawn_player(id: int, pos: Vector3) -> Player:
 			hud.update_player_health(id, new_h)
 			_check_game_over()
 		)
-		player.player_died.connect(func(_p): _check_game_over())
+		player.player_died.connect(_on_player_died)
 
+	on_player_joined(players.size())
 	return player
+
+func _on_player_died(player: Player) -> void:
+	_check_game_over()
+	if is_game_over or level_complete or not _has_living_player():
+		return
+	# Respawn fallen co-op player at the latest unlocked gate after 4.0s
+	await get_tree().create_timer(4.0).timeout
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
+	if is_game_over or level_complete or not _has_living_player():
+		return
+	if is_instance_valid(player) and player.current_health <= 0:
+		player.respawn_at(latest_checkpoint_pos + Vector3(randf_range(-0.6, 0.6), 0.0, randf_range(-0.6, 0.6)))
+
+func _has_living_player() -> bool:
+	for id in players.keys():
+		var p = players[id]
+		if is_instance_valid(p) and p.current_health > 0:
+			return true
+	return false
 
 func _check_game_over() -> void:
 	if is_game_over or level_complete:

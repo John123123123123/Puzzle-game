@@ -286,6 +286,11 @@ func _build_game_tab(parent: Control) -> Control:
 		SettingsManager.settings_changed.emit()
 		SettingsManager.save_settings()
 	)
+	_add_toggle_row(page, "Show Progression & Best Records", SettingsManager.show_progression_indicators, func(on: bool):
+		SettingsManager.show_progression_indicators = on
+		SettingsManager.settings_changed.emit()
+		SettingsManager.save_settings()
+	)
 	return page
 
 func _build_keybinds_tab(parent: Control) -> Control:

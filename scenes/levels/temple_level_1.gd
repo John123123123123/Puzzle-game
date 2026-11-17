@@ -12,6 +12,7 @@ extends "res://scenes/levels/base_temple_level.gd"
 @onready var gate_room3: AncientDoor = $Room2/GateToRoom3
 
 var is_escaping: bool = false
+var _gate_room2_base_triggers: int = 2
 
 # Tracks which players have returned to spawn after grabbing the idol
 var players_in_escape_zone: Dictionary = {}
@@ -21,8 +22,10 @@ func _ready() -> void:
 	var count = get_configured_player_count(2 if start_with_two_players else 1)
 
 	# Single-player friendly: Gate 1 only requires 1 trigger when solo
-	if count == 1 and is_instance_valid(gate_room2):
-		gate_room2.required_triggers = 1
+	if is_instance_valid(gate_room2):
+		_gate_room2_base_triggers = gate_room2.required_triggers
+		if count == 1:
+			gate_room2.required_triggers = 1
 
 	if hud:
 		var lvl_num = GameManager.current_level_index if is_instance_valid(GameManager) else 3
@@ -48,6 +51,11 @@ func _ready() -> void:
 	if is_instance_valid(pedestal):
 		scarab_spots.append(pedestal.global_position + Vector3(2.5, 0.0, 0.0))
 	spawn_scarabs(scarab_spots)
+
+func on_player_joined(total_players: int) -> void:
+	if total_players >= 2 and is_instance_valid(gate_room2) and not gate_room2.is_open:
+		gate_room2.required_triggers = _gate_room2_base_triggers
+		gate_room2._evaluate_door_state()
 
 # ---------------------------------------------------------------------------
 # Golden Idol grab sequence

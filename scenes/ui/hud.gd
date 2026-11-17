@@ -208,15 +208,24 @@ func show_level_complete(level_num: int) -> void:
 	sub.add_theme_font_size_override("font_size", 20)
 	sub.modulate = Color(0.9, 0.9, 0.85)
 
-	# Run summary (Time + Scarabs)
+	# Run summary (Time + Scarabs) + Save Progression
+	var is_new_record := false
+	if is_instance_valid(GameManager) and GameManager.has_method("record_level_clear"):
+		is_new_record = GameManager.record_level_clear(level_num, elapsed_time, scarabs_collected, scarabs_total)
+
+	var show_prog := is_instance_valid(SettingsManager) and SettingsManager.show_progression_indicators
+	var show_new_record := show_prog and is_new_record
+
 	var stats = Label.new()
 	var stats_text := "Clear Time: %s" % _format_time(elapsed_time)
 	if scarabs_total > 0:
 		stats_text += "   •   Scarabs: %d/%d" % [scarabs_collected, scarabs_total]
+	if show_new_record:
+		stats_text += "   ★ NEW BEST!"
 	stats.text = stats_text
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stats.add_theme_font_size_override("font_size", 18)
-	stats.modulate = Color(0.75, 0.92, 1.0)
+	stats.modulate = Color(1.0, 0.9, 0.35) if show_new_record else Color(0.75, 0.92, 1.0)
 
 	# Next level button
 	var btn_next = Button.new()
@@ -460,3 +469,45 @@ func _close_pause_menu() -> void:
 	_pause_panel = null
 	_pause_dim = null
 	get_tree().paused = false
+
+## Displays a brief fading controls hint at the bottom of the screen.
+func show_controls_hint(duration: float = 7.5) -> void:
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	margin.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	margin.add_theme_constant_override("margin_bottom", 26)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(panel)
+
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", 18)
+	pad.add_theme_constant_override("margin_right", 18)
+	pad.add_theme_constant_override("margin_top", 8)
+	pad.add_theme_constant_override("margin_bottom", 8)
+	panel.add_child(pad)
+
+	var interact_key := SettingsManager.get_action_key_label("p1_interact") if is_instance_valid(SettingsManager) else "E"
+	var whip_key := SettingsManager.get_action_key_label("p1_action") if is_instance_valid(SettingsManager) else "Space"
+	var cam_l := SettingsManager.get_action_key_label("cam_rotate_left") if is_instance_valid(SettingsManager) else "Q"
+	var cam_r := SettingsManager.get_action_key_label("cam_rotate_right") if is_instance_valid(SettingsManager) else "R"
+
+	var lbl := Label.new()
+	lbl.text = "Move: WASD   •   Interact / Grab: [%s]   •   Whip: [%s]   •   Rotate Camera: [%s / %s]" % [interact_key, whip_key, cam_l, cam_r]
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.modulate = Color(1.0, 0.94, 0.78)
+	pad.add_child(lbl)
+
+	add_child(margin)
+	margin.modulate.a = 0.0
+	var tween := margin.create_tween()
+	tween.tween_property(margin, "modulate:a", 1.0, 0.4)
+	tween.tween_interval(duration)
+	tween.tween_property(margin, "modulate:a", 0.0, 0.8)
+	tween.chain().tween_callback(margin.queue_free)

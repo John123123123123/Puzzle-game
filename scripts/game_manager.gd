@@ -27,6 +27,69 @@ var exploration_levels: Array[String] = [
 const FINALE_LEVEL: String = "res://scenes/levels/temple_level_1.tscn"
 
 const MAIN_MENU_SCENE: String = "res://scenes/ui/main_menu.tscn"
+const PROGRESS_PATH: String = "user://progress.cfg"
+
+var level_progress: Dictionary = {} # level_num (int) -> { "best_time": float, "best_scarabs": int, "total_scarabs": int }
+
+func _ready() -> void:
+	load_progress()
+
+func load_progress() -> void:
+	level_progress.clear()
+	var cfg := ConfigFile.new()
+	if cfg.load(PROGRESS_PATH) != OK:
+		return
+	for section in cfg.get_sections():
+		if section.begins_with("level_"):
+			var lvl_num := int(section.trim_prefix("level_"))
+			level_progress[lvl_num] = {
+				"best_time": float(cfg.get_value(section, "best_time", -1.0)),
+				"best_scarabs": int(cfg.get_value(section, "best_scarabs", 0)),
+				"total_scarabs": int(cfg.get_value(section, "total_scarabs", 3))
+			}
+
+func save_progress() -> void:
+	var cfg := ConfigFile.new()
+	for lvl_num in level_progress.keys():
+		var data: Dictionary = level_progress[lvl_num]
+		var section := "level_%d" % lvl_num
+		cfg.set_value(section, "best_time", data.get("best_time", -1.0))
+		cfg.set_value(section, "best_scarabs", data.get("best_scarabs", 0))
+		cfg.set_value(section, "total_scarabs", data.get("total_scarabs", 3))
+	cfg.save(PROGRESS_PATH)
+
+func record_level_clear(level_num: int, clear_time: float, scarabs: int, total_scarabs: int) -> bool:
+	var prev: Dictionary = level_progress.get(level_num, {"best_time": -1.0, "best_scarabs": 0, "total_scarabs": total_scarabs})
+	var prev_time: float = float(prev.get("best_time", -1.0))
+	var prev_scarabs: int = int(prev.get("best_scarabs", 0))
+	var has_previous_clear := prev_time >= 0.0
+	var is_new_best := false
+
+	var best_time := prev_time
+	if not has_previous_clear or clear_time < prev_time:
+		best_time = clear_time
+		if has_previous_clear:
+			is_new_best = true
+
+	var best_scarabs := maxi(prev_scarabs, scarabs)
+	if has_previous_clear and scarabs > prev_scarabs:
+		is_new_best = true
+
+	level_progress[level_num] = {
+		"best_time": best_time,
+		"best_scarabs": best_scarabs,
+		"total_scarabs": maxi(total_scarabs, int(prev.get("total_scarabs", 0)))
+	}
+	save_progress()
+	return is_new_best
+
+func get_level_progress(level_num: int) -> Dictionary:
+	return level_progress.get(level_num, {})
+
+static func format_time(seconds: float) -> String:
+	var mins := int(seconds) / 60
+	var secs := int(seconds) % 60
+	return "%02d:%02d" % [mins, secs]
 
 ## Returns all levels in order, guaranteeing that the Golden Idol / Boulder Finale is ALWAYS last!
 func get_levels() -> Array[String]:

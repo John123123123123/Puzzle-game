@@ -507,6 +507,31 @@ func _die() -> void:
 	tween.tween_property(mesh_root, "position:y", 0.12, 0.35)
 	player_died.emit(self)
 
+func respawn_at(pos: Vector3) -> void:
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
+	current_health = maxi(1, max_health - 1)
+	health_changed.emit(current_health)
+	is_staggering = false
+	is_whipping = false
+	is_invulnerable = true
+	velocity = Vector3.ZERO
+	global_position = pos
+	mesh_root.rotation = Vector3.ZERO
+	mesh_root.position = Vector3.ZERO
+	mesh_root.scale = Vector3.ONE
+	mesh_root.visible = true
+
+	var flicker := create_tween().set_loops(8)
+	flicker.tween_property(mesh_root, "visible", false, 0.09)
+	flicker.tween_property(mesh_root, "visible", true, 0.09)
+
+	await get_tree().create_timer(1.5).timeout
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
+	mesh_root.visible = true
+	is_invulnerable = false
+
 func _update_interact_prompt() -> void:
 	if not is_instance_valid(prompt_label):
 		return
