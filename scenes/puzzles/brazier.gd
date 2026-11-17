@@ -10,11 +10,22 @@ signal lit_state_changed(is_lit: bool)
 @onready var fire_light: OmniLight3D = $FireLight
 @onready var interaction_area: Area3D = $InteractionArea
 
+var _flicker_time: float = 0.0
+
 func _ready() -> void:
 	add_to_group("brazier")
 	add_to_group("interactable")
 	interaction_area.body_entered.connect(_on_body_entered)
+	_flicker_time = randf() * 10.0
 	_update_visuals(false)
+
+func _process(delta: float) -> void:
+	if is_lit and is_instance_valid(fire_light):
+		_flicker_time += delta
+		fire_light.light_energy = 2.4 + sin(_flicker_time * 11.0) * 0.18 + sin(_flicker_time * 23.0) * 0.1
+
+func get_interact_prompt() -> String:
+	return "" if is_lit else "Light Brazier"
 
 func interact(player: Player) -> void:
 	# If player is carrying a torch or interacting, light the brazier
@@ -35,6 +46,8 @@ func ignite() -> void:
 	if is_lit:
 		return
 	is_lit = true
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"brazier_ignite", global_position, 0.94, 1.06, -1.0, 20.0, 5.0)
 	_update_visuals(true)
 	lit_state_changed.emit(true)
 
@@ -44,6 +57,7 @@ func ignite() -> void:
 			node.register_trigger_activated()
 
 func _update_visuals(animate: bool) -> void:
+	set_process(is_lit)
 	flame_mesh.visible = is_lit
 	if fire_light:
 		if is_lit:

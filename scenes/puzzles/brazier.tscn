@@ -44,6 +44,7 @@ mesh = SubResource("CylinderMesh_base")
 
 [node name="FlameMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+cast_shadow = 0
 mesh = SubResource("SphereMesh_flame")
 
 [node name="FireParticles" parent="FlameMesh" instance=ExtResource("2_fire")]

@@ -1,6 +1,8 @@
 extends StaticBody3D
 class_name CrumblingFloor
 
+const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
+
 @export var collapse_delay: float = 0.75
 @export var respawn_time: float = 4.0
 @export var can_respawn: bool = true
@@ -24,12 +26,15 @@ func _on_body_entered(body: Node3D) -> void:
 
 func start_collapse() -> void:
 	is_collapsing = true
+	DUST_PUFF.spawn(get_parent(), global_position, 4, 1.0)
 
 	# Shake animation
 	var tween = create_tween().set_loops(6)
 	tween.tween_property(tile_mesh, "position:x", 0.05, collapse_delay / 12.0)
 	tween.tween_property(tile_mesh, "position:x", -0.05, collapse_delay / 12.0)
 	await get_tree().create_timer(collapse_delay).timeout
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
 
 	# Drop down
 	collision_shape.set_deferred("disabled", true)
@@ -37,11 +42,15 @@ func start_collapse() -> void:
 	fall_tween.tween_property(self, "position:y", original_position.y - 12.0, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	fall_tween.tween_property(tile_mesh, "transparency", 1.0, 0.4)
 	await fall_tween.finished
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
 
 	visible = false
 
 	if can_respawn:
 		await get_tree().create_timer(respawn_time).timeout
+		if not is_instance_valid(self) or not is_inside_tree():
+			return
 		respawn_tile()
 
 func respawn_tile() -> void:

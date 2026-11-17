@@ -16,6 +16,7 @@ _data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), -2.0, 0.0, 0, 0]
 point_count = 2
 
 [node name="TorchFire" type="CPUParticles3D"]
+cast_shadow = 0
 amount = 16
 lifetime = 0.75
 speed_scale = 1.1

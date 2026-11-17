@@ -13,4 +13,5 @@ func lash(from: Vector3, to: Vector3, duration: float = 0.25) -> void:
 	mesh.transparency = 0.0
 	tween.tween_property(mesh, "transparency", 1.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	await tween.finished
-	queue_free()
+	if is_instance_valid(self):
+		queue_free()

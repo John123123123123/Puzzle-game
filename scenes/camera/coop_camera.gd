@@ -16,11 +16,26 @@ var targets: Array[Node3D] = []
 var target_yaw: float = deg_to_rad(45.0)
 var is_mouse_dragging: bool = false
 var shake_offset: Vector3 = Vector3.ZERO
+var _shake_intensity: float = 0.0
+var _shake_timer: float = 0.0
 var occluded_meshes: Dictionary = {} # MeshInstance3D -> original transparency
+var _occlusion_ray_query: PhysicsRayQueryParameters3D = null
+var _hit_meshes_buf: Array[MeshInstance3D] = []
+var _to_remove_buf: Array[MeshInstance3D] = []
 
 func _ready() -> void:
 	add_to_group("coop_camera")
 	target_yaw = yaw_pivot.rotation.y
+	_occlusion_ray_query = PhysicsRayQueryParameters3D.new()
+	_occlusion_ray_query.collision_mask = 1 # Environment / Walls
+	_occlusion_ray_query.collide_with_areas = false
+	_occlusion_ray_query.collide_with_bodies = true
+
+func trigger_shake(intensity: float, duration: float = 0.15) -> void:
+	if is_instance_valid(SettingsManager) and not SettingsManager.camera_shake:
+		return
+	_shake_intensity = maxf(_shake_intensity, intensity)
+	_shake_timer = maxf(_shake_timer, duration)
 
 func register_target(target: Node3D) -> void:
 	if not targets.has(target):
@@ -40,7 +55,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			target_yaw += deg_to_rad(15.0)
 
 	elif event is InputEventMouseMotion and is_mouse_dragging:
-		target_yaw -= event.relative.x * mouse_sensitivity
+		var sens := SettingsManager.camera_sensitivity if is_instance_valid(SettingsManager) else 1.0
+		var inv := -1.0 if (is_instance_valid(SettingsManager) and SettingsManager.invert_camera_x) else 1.0
+		target_yaw -= event.relative.x * mouse_sensitivity * sens * inv
 
 	# Snap rotation steps
 	if event.is_action_pressed("cam_rotate_left"):
@@ -50,15 +67,32 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_handle_input_held(delta)
+	_update_shake(delta)
 	_update_tracking(delta)
 	_update_rotation(delta)
 	_update_wall_occlusion()
 
+func _update_shake(delta: float) -> void:
+	if _shake_timer > 0.0:
+		_shake_timer -= delta
+		shake_offset = Vector3(
+			randf_range(-1.0, 1.0) * _shake_intensity,
+			randf_range(-1.0, 1.0) * _shake_intensity,
+			0.0
+		)
+		if _shake_timer <= 0.0:
+			_shake_intensity = 0.0
+	else:
+		shake_offset = shake_offset.lerp(Vector3.ZERO, 15.0 * delta)
+
 func _handle_input_held(delta: float) -> void:
 	# Gamepad Right Stick smooth rotation
+	var deadzone := SettingsManager.gamepad_deadzone if is_instance_valid(SettingsManager) else 0.2
+	var sens := SettingsManager.camera_sensitivity if is_instance_valid(SettingsManager) else 1.0
+	var inv := -1.0 if (is_instance_valid(SettingsManager) and SettingsManager.invert_camera_x) else 1.0
 	var joy_x = Input.get_joy_axis(0, JOY_AXIS_RIGHT_X)
-	if abs(joy_x) > 0.2:
-		target_yaw += joy_x * delta * 2.8
+	if abs(joy_x) > deadzone:
+		target_yaw += joy_x * delta * 2.8 * sens * inv
 
 	# Keyboard continuous rotation if held
 	if Input.is_action_pressed("cam_rotate_left") and not Input.is_action_just_pressed("cam_rotate_left"):
@@ -67,11 +101,10 @@ func _handle_input_held(delta: float) -> void:
 		target_yaw += delta * 2.0
 
 func _update_tracking(delta: float) -> void:
-	var valid_targets: Array[Node3D] = []
-	for t in targets:
-		if is_instance_valid(t) and t.is_inside_tree():
-			valid_targets.append(t)
-	targets = valid_targets
+	for i in range(targets.size() - 1, -1, -1):
+		var t := targets[i]
+		if not is_instance_valid(t) or not t.is_inside_tree():
+			targets.remove_at(i)
 
 	if targets.is_empty():
 		return
@@ -104,41 +137,37 @@ func _update_wall_occlusion() -> void:
 
 	var space_state = get_world_3d().direct_space_state
 	var cam_pos = camera.global_position
-	var target_pos = global_position + Vector3(0, 0.8, 0)
+	_hit_meshes_buf.clear()
+	_occlusion_ray_query.from = cam_pos
 
-	var query = PhysicsRayQueryParameters3D.create(cam_pos, target_pos)
-	query.collision_mask = 1 # Environment / Walls
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
+	for t in targets:
+		_occlusion_ray_query.to = t.global_position + Vector3(0, 0.8, 0)
+		var hit = space_state.intersect_ray(_occlusion_ray_query)
+		if hit:
+			var collider = hit.collider
+			if collider and collider.is_in_group("wall"):
+				for child in collider.get_children():
+					if child is MeshInstance3D and not _hit_meshes_buf.has(child):
+						_hit_meshes_buf.append(child)
+						break
 
-	var hit = space_state.intersect_ray(query)
-	var currently_hit_mesh: MeshInstance3D = null
-
-	if hit:
-		var collider = hit.collider
-		if collider and collider.is_in_group("wall"):
-			for child in collider.get_children():
-				if child is MeshInstance3D:
-					currently_hit_mesh = child
-					break
-
-	# Fade in newly occluded mesh
-	if currently_hit_mesh:
-		if not occluded_meshes.has(currently_hit_mesh):
-			occluded_meshes[currently_hit_mesh] = currently_hit_mesh.transparency
-		currently_hit_mesh.transparency = lerpf(currently_hit_mesh.transparency, 0.72, 0.2)
+	# Fade in newly occluded meshes
+	for mesh in _hit_meshes_buf:
+		if not occluded_meshes.has(mesh):
+			occluded_meshes[mesh] = mesh.transparency
+		mesh.transparency = lerpf(mesh.transparency, 0.72, 0.2)
 
 	# Restore transparency for unoccluded meshes
-	var to_remove = []
+	_to_remove_buf.clear()
 	for mesh in occluded_meshes.keys():
-		if mesh != currently_hit_mesh:
+		if not _hit_meshes_buf.has(mesh):
 			if is_instance_valid(mesh):
 				mesh.transparency = lerpf(mesh.transparency, 0.0, 0.2)
 				if mesh.transparency < 0.02:
 					mesh.transparency = 0.0
-					to_remove.append(mesh)
+					_to_remove_buf.append(mesh)
 			else:
-				to_remove.append(mesh)
+				_to_remove_buf.append(mesh)
 
-	for m in to_remove:
+	for m in _to_remove_buf:
 		occluded_meshes.erase(m)

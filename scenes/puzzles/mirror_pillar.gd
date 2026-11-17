@@ -1,4 +1,4 @@
-extends Node3D
+extends StaticBody3D
 class_name MirrorPillar
 
 signal rotated(new_angle: float)
@@ -18,31 +18,39 @@ signal rotated(new_angle: float)
 var is_illuminated: bool = false
 var is_turning: bool = false
 var target_rot_y: float = 0.0
-var audio_player: AudioStreamPlayer3D = null
+var _last_beam_length: float = -1.0
+var _ray_query: PhysicsRayQueryParameters3D = null
 
 func _ready() -> void:
 	add_to_group("mirror")
 	add_to_group("interactable")
 
-	# Duplicate cylinder meshes so each mirror instance can have its own beam length
+	# Duplicate cylinder meshes and mirror material so each instance is independent
 	if is_instance_valid(core_mesh_inst) and core_mesh_inst.mesh:
 		core_mesh_inst.mesh = core_mesh_inst.mesh.duplicate()
 	if is_instance_valid(aura_mesh_inst) and aura_mesh_inst.mesh:
 		aura_mesh_inst.mesh = aura_mesh_inst.mesh.duplicate()
-
-	# Create procedural stone turning sound
-	audio_player = AudioStreamPlayer3D.new()
-	audio_player.stream = _create_stone_turn_sound()
-	audio_player.unit_size = 5.0
-	audio_player.max_distance = 25.0
-	add_child(audio_player)
+	if is_instance_valid(mirror_mesh):
+		var mat = mirror_mesh.get_active_material(0)
+		if mat:
+			mirror_mesh.material_override = mat.duplicate()
 
 	# Initial angle: 0=North (-Z), 1=East (+X, -90°), 2=South (+Z, -180°), 3=West (-X, -270°)
 	target_rot_y = -float(current_step) * (PI / 2.0)
 	if is_instance_valid(pillar_top):
 		pillar_top.rotation.y = target_rot_y
 
+	_ray_query = PhysicsRayQueryParameters3D.new()
+	_ray_query.collision_mask = 1
+	_ray_query.collide_with_areas = false
+	_ray_query.collide_with_bodies = true
+	if self is CollisionObject3D:
+		_ray_query.exclude = [get_rid()]
+
 	set_beam_active(false)
+
+func get_interact_prompt() -> String:
+	return "Rotate Mirror"
 
 func interact(player: Player) -> void:
 	if not is_rotatable or is_turning:
@@ -54,18 +62,62 @@ func rotate_pillar() -> void:
 	current_step = (current_step + 1) % 4
 	target_rot_y -= PI / 2.0 # Smooth clockwise rotation
 
-	if is_instance_valid(audio_player):
-		audio_player.pitch_scale = randf_range(0.96, 1.04)
-		audio_player.play()
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"mirror_turn", global_position, 0.96, 1.04, 0.0, 25.0, 5.0)
 
 	var tween = create_tween()
 	tween.tween_property(pillar_top, "rotation:y", target_rot_y, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await tween.finished
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
 	is_turning = false
 	rotated.emit(target_rot_y)
 
+## Casts a dynamic 3D ray along the mirror's facing direction to find walls, blocks, mirrors, or sun receivers.
+func trace_beam(max_distance: float = 30.0) -> Dictionary:
+	var result_data := {
+		"length": max_distance,
+		"hit_mirror": null,
+		"hit_receiver": null
+	}
+	if not is_instance_valid(beam_root) or not is_inside_tree():
+		return result_data
+
+	var origin: Vector3 = beam_root.global_position
+	var dir: Vector3 = -beam_root.global_basis.z.normalized()
+	var space_state := get_world_3d().direct_space_state
+
+	_ray_query.from = origin
+	_ray_query.to = origin + dir * max_distance
+
+	var hit := space_state.intersect_ray(_ray_query)
+	var closest_dist: float = max_distance
+	if hit:
+		closest_dist = origin.distance_to(hit.position)
+		if hit.collider is MirrorPillar:
+			result_data["hit_mirror"] = hit.collider
+
+	# Check SunReceivers along the ray segment (before any physics wall hit)
+	for node in get_tree().get_nodes_in_group("sun_receiver"):
+		if not is_instance_valid(node) or not (node is Node3D):
+			continue
+		var to_node: Vector3 = node.global_position - origin
+		var proj: float = to_node.dot(dir)
+		if proj > 0.2 and proj <= closest_dist + 0.35:
+			var perp_dist: float = (to_node - dir * proj).length()
+			if perp_dist <= 0.65:
+				closest_dist = proj
+				result_data["hit_mirror"] = null
+				result_data["hit_receiver"] = node
+
+	result_data["length"] = closest_dist
+	return result_data
+
 func set_beam_active(active: bool, length: float = 8.0) -> void:
+	if is_illuminated == active and (not active or absf(_last_beam_length - length) < 0.005):
+		return
 	is_illuminated = active
+	_last_beam_length = length if active else -1.0
 
 	if not is_instance_valid(beam_root):
 		return
@@ -104,23 +156,3 @@ func set_beam_active(active: bool, length: float = 8.0) -> void:
 			var mat = mirror_mesh.get_active_material(0) as StandardMaterial3D
 			if mat:
 				mat.emission_enabled = false
-
-func _create_stone_turn_sound() -> AudioStreamWAV:
-	var sample_rate = 22050
-	var duration = 0.24
-	var num_samples = int(sample_rate * duration)
-	var data = PackedByteArray()
-	data.resize(num_samples)
-	for i in range(num_samples):
-		var t = float(i) / float(sample_rate)
-		# Heavy grinding stone ratchet: friction rumble + metallic gear lock
-		var rumble = sin(t * 110.0 * TAU + sin(t * 45.0 * TAU) * 2.0) * exp(-t * 9.0)
-		var ratchet = sin(t * 820.0 * TAU) * exp(-abs(t - 0.20) * 55.0)
-		var sample = clampf(rumble * 0.65 + ratchet * 0.35, -1.0, 1.0)
-		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
-
-	var stream = AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
-	stream.mix_rate = sample_rate
-	stream.data = data
-	return stream

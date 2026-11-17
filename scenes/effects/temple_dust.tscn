@@ -18,6 +18,7 @@ _data = [Vector2(0, 0), 0.0, 3.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2
 point_count = 3
 
 [node name="TempleDust" type="CPUParticles3D"]
+cast_shadow = 0
 amount = 45
 lifetime = 6.0
 preprocess = 3.0
