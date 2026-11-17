@@ -47,7 +47,27 @@ func _ready() -> void:
 
 	set_player_count(1)
 	set_selected_level(1)
+
+	var vbox := get_node_or_null("VBoxContainer")
+	if vbox:
+		var btn_settings := Button.new()
+		btn_settings.text = "Settings"
+		btn_settings.custom_minimum_size = Vector2(220, 44)
+		btn_settings.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		btn_settings.pressed.connect(func(): _open_settings(btn_settings))
+		vbox.add_child(btn_settings)
+
 	start_button.grab_focus()
+
+const SETTINGS_MENU_SCRIPT := preload("res://scenes/ui/settings_menu.gd")
+
+func _open_settings(return_focus: Button) -> void:
+	var settings := SETTINGS_MENU_SCRIPT.new()
+	add_child(settings)
+	settings.closed.connect(func():
+		if is_instance_valid(return_focus):
+			return_focus.grab_focus()
+	)
 
 func set_player_count(count: int) -> void:
 	selected_count = clampi(count, 1, 4)

@@ -1,12 +1,8 @@
-extends Node3D
+extends "res://scenes/levels/base_temple_level.gd"
+## Campaign Level 1: The Dark Catacombs (Braziers, spikes, levers)
+## Mapped as index 0 in GameManager.exploration_levels.
 
-@onready var coop_camera: CoopCamera = $CoopCamera
-@onready var hud: GameHUD = $HUD
 @onready var level_exit: LevelExit = $LevelExit
-@onready var player_spawn_1: Marker3D = $SpawnPoints/Spawn1
-@onready var player_spawn_2: Marker3D = $SpawnPoints/Spawn2
-@onready var player_spawn_3: Marker3D = $SpawnPoints/Spawn3
-@onready var player_spawn_4: Marker3D = $SpawnPoints/Spawn4
 
 # Puzzles
 @onready var brazier_1: Brazier = $Room1/Brazier1
@@ -18,89 +14,33 @@ extends Node3D
 @onready var lever_b: WallLever = $Room2/LeverB
 @onready var gate_room2: AncientDoor = $Room2/GateToRoom3
 
-var players: Dictionary = {}
-var player_scene = preload("res://scenes/characters/player.tscn")
 var lit_braziers: int = 0
-var is_game_over: bool = false
-var level_complete: bool = false
 
 func _ready() -> void:
-	hud.set_objective("Level 1: Light the braziers and navigate the catacombs!")
-
-	# Spawn players based on GameManager
-	var count = 1
-	if is_instance_valid(GameManager):
-		count = GameManager.player_count
-
-	var spawn_markers = [player_spawn_1, player_spawn_2, player_spawn_3, player_spawn_4]
-	for i in range(count):
-		var id = i + 1
-		var pos = spawn_markers[i].global_position if i < spawn_markers.size() else player_spawn_1.global_position + Vector3(i * 1.0, 0, 0)
-		spawn_player(id, pos)
+	super._ready()
+	hud.set_objective("Level 1: Light the braziers (0/3) and navigate the catacombs!")
+	spawn_initial_players(get_configured_player_count(1))
 
 	# Connect Brazier puzzle
 	brazier_1.lit_state_changed.connect(_on_brazier_lit)
 	brazier_2.lit_state_changed.connect(_on_brazier_lit)
 	brazier_3.lit_state_changed.connect(_on_brazier_lit)
 
+	var scarab_spots: Array[Vector3] = []
+	if is_instance_valid(brazier_2):
+		scarab_spots.append(brazier_2.global_position + Vector3(1.8, 0.0, 0.0))
+	if is_instance_valid(lever_a):
+		scarab_spots.append(lever_a.global_position + Vector3(0.0, -1.0, 1.8))
+	if is_instance_valid(gate_room2):
+		scarab_spots.append(gate_room2.global_position + Vector3(-2.0, 0.0, 2.0))
+	spawn_scarabs(scarab_spots)
+
 func _on_brazier_lit(is_lit: bool) -> void:
 	if is_lit:
 		lit_braziers += 1
-		if lit_braziers >= 3 and gate_room1:
-			gate_room1.register_trigger_activated()
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		if is_instance_valid(GameManager):
-			GameManager.return_to_menu()
-		return
-
-	# Drop-in join
-	for id in range(1, 5):
-		var prefix = "p%d_" % id
-		if not players.has(id):
-			if event.is_action_pressed(prefix + "interact") or event.is_action_pressed(prefix + "action"):
-				var sp = get_node_or_null("SpawnPoints/Spawn%d" % id)
-				var pos = sp.global_position if sp else player_spawn_1.global_position + Vector3(id * 1.0, 0, 0)
-				spawn_player(id, pos)
-
-func spawn_player(id: int, pos: Vector3) -> Player:
-	if players.has(id):
-		return players[id]
-
-	var player = player_scene.instantiate() as Player
-	player.player_id = id
-	add_child(player)
-	player.global_position = pos
-	players[id] = player
-
-	if coop_camera:
-		coop_camera.register_target(player)
-
-	if hud:
-		hud.register_player(id, player.current_health)
-		player.health_changed.connect(func(new_h):
-			hud.update_player_health(id, new_h)
-			_check_game_over()
-		)
-		player.player_died.connect(func(_p): _check_game_over())
-
-	return player
-
-func _check_game_over() -> void:
-	if is_game_over or level_complete:
-		return
-
-	if players.is_empty():
-		return
-
-	for id in players.keys():
-		var p = players[id]
-		if is_instance_valid(p) and p.current_health > 0:
-			return  # At least one player is still alive
-
-	# All players have fallen!
-	is_game_over = true
-	await get_tree().create_timer(0.8).timeout
-	if is_instance_valid(hud):
-		hud.show_game_over()
+		if lit_braziers >= 3:
+			hud.set_objective("Level 1: Gate unlocked! Pull the levers and reach the exit!")
+			if gate_room1:
+				gate_room1.register_trigger_activated()
+		else:
+			hud.set_objective("Level 1: Light the braziers (%d/3) and navigate the catacombs!" % lit_braziers)

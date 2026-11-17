@@ -10,6 +10,9 @@ var is_taken: bool = false
 func _ready() -> void:
 	add_to_group("carryable")
 
+func get_interact_prompt() -> String:
+	return "Take Golden Idol"
+
 func on_picked_up(player: Player) -> void:
 	if not is_taken:
 		is_taken = true

@@ -36,6 +36,9 @@ func _physics_process(delta: float) -> void:
 func _thrust_spikes() -> void:
 	is_active = true
 
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"spike_thrust", global_position, 0.94, 1.06, -2.0, 18.0, 4.0)
+
 	var tween = create_tween()
 	# Fast, violent snap upward with overshoot
 	tween.tween_property(spikes_mesh, "position:y", 0.38, 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

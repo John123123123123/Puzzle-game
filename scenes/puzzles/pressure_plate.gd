@@ -14,8 +14,6 @@ var occupying_bodies: Array[Node3D] = []
 @onready var rune_light: OmniLight3D = $RuneLight
 @onready var rune_glyph: MeshInstance3D = $PlateMesh/RuneGlyph
 
-var audio_player: AudioStreamPlayer3D = null
-
 var initial_y: float = 0.08
 var pressed_y: float = 0.015
 
@@ -25,12 +23,10 @@ func _ready() -> void:
 	trigger_area.body_exited.connect(_on_body_exited)
 	plate_mesh.position.y = initial_y
 
-	# Setup audio player with procedural stone click
-	audio_player = AudioStreamPlayer3D.new()
-	audio_player.stream = _create_click_sound()
-	audio_player.unit_size = 6.0
-	audio_player.max_distance = 25.0
-	add_child(audio_player)
+	if is_instance_valid(rune_glyph):
+		var mat = rune_glyph.get_active_material(0)
+		if mat:
+			rune_glyph.material_override = mat.duplicate()
 
 	# Initial visuals
 	_update_visuals(false, false)
@@ -80,8 +76,8 @@ func _update_state() -> void:
 		is_pressed = should_press
 		_animate_plate(is_pressed)
 		_update_visuals(is_pressed, true)
-		if is_pressed and is_instance_valid(audio_player):
-			audio_player.play()
+		if is_pressed and is_instance_valid(AudioManager):
+			AudioManager.play_sfx_3d(&"plate_click", global_position, 0.96, 1.04, 0.0, 25.0, 6.0)
 		state_changed.emit(is_pressed)
 
 func _animate_plate(pressed: bool) -> void:
@@ -110,23 +106,3 @@ func _update_visuals(pressed: bool, animate: bool) -> void:
 			mat = rune_glyph.material_override as ShaderMaterial
 		if mat:
 			mat.set_shader_parameter("emission_energy", 4.5 if pressed else 1.2)
-
-func _create_click_sound() -> AudioStreamWAV:
-	var sample_rate = 22050
-	var duration = 0.08
-	var num_samples = int(sample_rate * duration)
-	var data = PackedByteArray()
-	data.resize(num_samples)
-	for i in range(num_samples):
-		var t = float(i) / float(sample_rate)
-		# Mechanical heavy stone click: sharp transient + decaying thud
-		var click = sin(t * 1400.0 * TAU) * exp(-t * 100.0)
-		var thud = sin(t * 85.0 * TAU) * exp(-t * 30.0)
-		var sample = clampf(click * 0.4 + thud * 0.6, -1.0, 1.0)
-		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
-
-	var stream = AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
-	stream.mix_rate = sample_rate
-	stream.data = data
-	return stream

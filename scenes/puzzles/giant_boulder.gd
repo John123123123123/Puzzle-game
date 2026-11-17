@@ -1,6 +1,8 @@
 extends CharacterBody3D
 class_name GiantBoulder
 
+const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
+
 signal boulder_stopped()
 
 @export var roll_speed: float = 7.0
@@ -12,6 +14,8 @@ signal boulder_stopped()
 @onready var rumble_light: OmniLight3D = $OmniLight3D
 
 var camera_ref: CoopCamera = null
+var rumble_audio: AudioStreamPlayer3D = null
+var _dust_timer: float = 0.0
 
 func _ready() -> void:
 	visible = false  # Hidden until idol is grabbed
@@ -19,10 +23,14 @@ func _ready() -> void:
 	var cams = get_tree().get_nodes_in_group("coop_camera")
 	if cams.size() > 0:
 		camera_ref = cams[0]
+	if is_instance_valid(AudioManager):
+		rumble_audio = AudioManager.create_player_3d(&"boulder_rumble", self, -3.0, 32.0, 8.0)
 
 func trigger_roll() -> void:
 	visible = true  # Reveal boulder right before it starts rolling
 	is_rolling = true
+	if is_instance_valid(rumble_audio):
+		rumble_audio.play()
 
 func _physics_process(delta: float) -> void:
 	if not is_rolling:
@@ -38,9 +46,15 @@ func _physics_process(delta: float) -> void:
 	# Rotate the boulder mesh as it rolls forward
 	mesh_instance.rotate_x(roll_speed * delta * 0.75)
 
+	# Trail dust puffs behind the rolling boulder
+	_dust_timer += delta
+	if _dust_timer >= 0.09:
+		_dust_timer = 0.0
+		DUST_PUFF.spawn(get_parent(), global_position - Vector3(0, 1.0, 1.0), 3, 1.6)
+
 	# Camera rumble based on proximity to players
-	if camera_ref and global_position.distance_to(camera_ref.global_position) < 22.0:
-		camera_ref.position.y += randf_range(-0.04, 0.04)
+	if is_instance_valid(camera_ref) and global_position.distance_to(camera_ref.global_position) < 22.0:
+		camera_ref.trigger_shake(0.06, 0.1)
 
 	# Handle collisions
 	for i in get_slide_collision_count():
@@ -67,6 +81,11 @@ func _physics_process(delta: float) -> void:
 		_smash_effect()
 
 func _smash_effect() -> void:
+	if is_instance_valid(rumble_audio):
+		rumble_audio.stop()
+	if is_instance_valid(camera_ref):
+		camera_ref.trigger_shake(0.22, 0.35)
+	DUST_PUFF.spawn(get_parent(), global_position, 8, 2.0)
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector3(1.15, 0.85, 1.15), 0.1)
 	tween.tween_property(self, "scale", Vector3.ONE, 0.15)

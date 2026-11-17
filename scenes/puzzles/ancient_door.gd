@@ -23,12 +23,13 @@ func _ready() -> void:
 	closed_position = position
 	add_to_group("ancient_door")
 
-	# Setup 3D audio for heavy stone grinding
-	audio_player = AudioStreamPlayer3D.new()
-	audio_player.stream = _create_door_rumble_sound()
-	audio_player.unit_size = 8.0
-	audio_player.max_distance = 35.0
-	add_child(audio_player)
+	if is_instance_valid(door_mesh):
+		var mat = door_mesh.get_active_material(0)
+		if mat:
+			door_mesh.material_override = mat.duplicate()
+
+	if is_instance_valid(AudioManager):
+		audio_player = AudioManager.create_player_3d(&"door_rumble", self, 0.0, 35.0, 8.0)
 
 	if rune_light:
 		rune_light.light_energy = 0.4
@@ -124,25 +125,3 @@ func _animate_door(open: bool) -> void:
 	else:
 		if is_instance_valid(collision_shape):
 			collision_shape.set_deferred("disabled", false)
-
-func _create_door_rumble_sound() -> AudioStreamWAV:
-	var sample_rate = 22050
-	var duration = 1.2
-	var num_samples = int(sample_rate * duration)
-	var data = PackedByteArray()
-	data.resize(num_samples)
-	for i in range(num_samples):
-		var t = float(i) / float(sample_rate)
-		# Deep grinding subterranean stone rumble with friction rumble
-		var sub = sin(t * 42.0 * TAU + sin(t * 18.0 * TAU) * 3.0) * 0.5
-		var grind = sin(t * 135.0 * TAU + sin(t * 60.0 * TAU) * 2.0) * 0.35
-		var gravel = sin(t * 310.0 * TAU) * sin(t * 73.0 * TAU) * 0.2
-		var env = sin(clampf(t / duration, 0.0, 1.0) * PI)
-		var sample = clampf((sub + grind + gravel) * env, -1.0, 1.0)
-		data[i] = int(clampi(int((sample * 0.65 + 0.5) * 255.0), 0, 255))
-
-	var stream = AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
-	stream.mix_rate = sample_rate
-	stream.data = data
-	return stream

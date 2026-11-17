@@ -13,22 +13,22 @@ signal player_died(player: Player)
 
 var current_health: int = 3
 var carried_item: Node3D = null
+var grabbed_block: PushableBlock = null
 var current_interactable: Node3D = null
 var is_invulnerable: bool = false
 var is_whipping: bool = false
 var is_staggering: bool = false
 
-var hurt_audio: AudioStreamPlayer3D = null
-var death_audio: AudioStreamPlayer3D = null
-var hurt_light: OmniLight3D = null
+const WHIP_SCENE: PackedScene = preload("res://scenes/characters/whip_effect.tscn")
 
-# Player ring indicator colors
-const PLAYER_COLORS: Array[Color] = [
-	Color(0.85, 0.25, 0.2), # P1: Red
-	Color(0.2, 0.5, 0.9),  # P2: Blue
-	Color(0.2, 0.75, 0.3), # P3: Green
-	Color(0.9, 0.75, 0.15) # P4: Gold
-]
+var hurt_light: OmniLight3D = null
+var prompt_label: Label3D = null
+var _last_step_half_cycle: int = 0
+var _hud: Node = null
+var _coop_cameras: Array = []
+var _whip_ray_query: PhysicsRayQueryParameters3D = null
+var _last_prompt_target: Node3D = null
+var _last_prompt_text: String = ""
 
 # Distinct thematic outfits per player
 const OUTFIT_JACKETS: Array[Color] = [
@@ -90,10 +90,16 @@ func _ready() -> void:
 
 	_apply_player_identity()
 
-	# Register with coop camera
-	var cameras = get_tree().get_nodes_in_group("coop_camera")
-	for cam in cameras:
+	# Register with coop camera & cache HUD/camera refs
+	_coop_cameras = get_tree().get_nodes_in_group("coop_camera")
+	for cam in _coop_cameras:
 		cam.register_target(self)
+	_hud = get_tree().get_first_node_in_group("hud")
+
+	_whip_ray_query = PhysicsRayQueryParameters3D.new()
+	_whip_ray_query.collision_mask = 5 # Layer 1 (Environment) and Layer 3 (Interactables)
+	_whip_ray_query.collide_with_areas = true
+	_whip_ray_query.exclude = [self]
 
 	# Interaction area setup
 	interaction_area.area_entered.connect(_on_interaction_area_entered)
@@ -107,19 +113,15 @@ func _ready() -> void:
 	hurt_light.position = Vector3(0, 0.9, 0)
 	add_child(hurt_light)
 
-	# Damage hurt sound
-	hurt_audio = AudioStreamPlayer3D.new()
-	hurt_audio.stream = _create_hurt_sound()
-	hurt_audio.unit_size = 5.5
-	hurt_audio.max_distance = 25.0
-	add_child(hurt_audio)
-
-	# Death sound
-	death_audio = AudioStreamPlayer3D.new()
-	death_audio.stream = _create_death_sound()
-	death_audio.unit_size = 7.0
-	death_audio.max_distance = 30.0
-	add_child(death_audio)
+	# World-space interaction prompt
+	prompt_label = Label3D.new()
+	prompt_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	prompt_label.no_depth_test = true
+	prompt_label.font_size = 36
+	prompt_label.outline_size = 8
+	prompt_label.modulate = Color(1.0, 0.94, 0.72)
+	prompt_label.visible = false
+	add_child(prompt_label)
 
 func _apply_player_identity() -> void:
 	var idx = clampi(player_id - 1, 0, 3)
@@ -128,13 +130,21 @@ func _apply_player_identity() -> void:
 	if ring_indicator:
 		var ring_mat = StandardMaterial3D.new()
 		ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		ring_mat.albedo_color = PLAYER_COLORS[idx]
+		var p_color := GameManager.get_player_color(player_id)
+		ring_mat.albedo_color = p_color
+		ring_mat.emission_enabled = true
+		ring_mat.emission = p_color
+		ring_mat.emission_energy_multiplier = 1.4
 		ring_indicator.material_override = ring_mat
 
-	# 2. Jacket & Sleeves
+	# 2. Jacket & Sleeves (PBR leather with subtle rim catchlight)
 	var jacket_mat = StandardMaterial3D.new()
 	jacket_mat.albedo_color = OUTFIT_JACKETS[idx]
-	jacket_mat.roughness = 0.75
+	jacket_mat.roughness = 0.58
+	jacket_mat.metallic = 0.06
+	jacket_mat.rim_enabled = true
+	jacket_mat.rim = 0.25
+	jacket_mat.rim_tint = 0.4
 	if body_mesh: body_mesh.material_override = jacket_mat
 	if sleeve_l: sleeve_l.material_override = jacket_mat
 	if sleeve_r: sleeve_r.material_override = jacket_mat
@@ -142,14 +152,16 @@ func _apply_player_identity() -> void:
 	# 3. Pants
 	var pants_mat = StandardMaterial3D.new()
 	pants_mat.albedo_color = OUTFIT_PANTS[idx]
-	pants_mat.roughness = 0.85
+	pants_mat.roughness = 0.88
 	if pants_l: pants_l.material_override = pants_mat
 	if pants_r: pants_r.material_override = pants_mat
 
 	# 4. Hat
 	var hat_mat = StandardMaterial3D.new()
 	hat_mat.albedo_color = OUTFIT_HATS[idx]
-	hat_mat.roughness = 0.8
+	hat_mat.roughness = 0.68
+	hat_mat.rim_enabled = true
+	hat_mat.rim = 0.18
 	if hat_brim: hat_brim.material_override = hat_mat
 	if hat_crown: hat_crown.material_override = hat_mat
 
@@ -171,6 +183,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_handle_push_collisions()
 	_update_animation(delta)
+	_update_interact_prompt()
 
 func _handle_push_collisions() -> void:
 	for i in get_slide_collision_count():
@@ -237,6 +250,13 @@ func _update_animation(delta: float) -> void:
 		var stride_frequency = 2.4 * (horizontal_speed / speed)
 		walk_cycle += delta * stride_frequency * TAU
 
+		# Synced stone footstep SFX each half-stride
+		var half_cycle := int(floor(walk_cycle / PI))
+		if half_cycle != _last_step_half_cycle:
+			_last_step_half_cycle = half_cycle
+			if is_instance_valid(AudioManager):
+				AudioManager.play_sfx_3d(&"footstep", global_position, 0.88, 1.12, -10.0, 16.0, 3.0)
+
 		# 1. Legs swing back and forth
 		var leg_swing = sin(walk_cycle) * 0.75
 		leg_l.rotation.x = leg_swing
@@ -279,6 +299,7 @@ func _update_animation(delta: float) -> void:
 		# Idle cycle (calm breathing)
 		idle_cycle += delta * 2.5
 		walk_cycle = 0.0
+		_last_step_half_cycle = 0
 
 		# Return legs to resting standing stance
 		leg_l.rotation.x = lerp_angle(leg_l.rotation.x, 0.0, 12.0 * delta)
@@ -319,6 +340,8 @@ func use_whip() -> void:
 		return
 
 	is_whipping = true
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"whip_crack", global_position, 0.94, 1.08, -2.0, 22.0, 5.0)
 	# Whip arm animation: snap right arm forward
 	var tween = create_tween()
 	tween.tween_property(arm_r, "rotation:x", deg_to_rad(-105.0), 0.08)
@@ -326,8 +349,7 @@ func use_whip() -> void:
 	tween.finished.connect(func(): is_whipping = false)
 
 	# Spawn whip lash effect
-	var whip_scene = preload("res://scenes/characters/whip_effect.tscn")
-	var whip = whip_scene.instantiate() as WhipEffect
+	var whip = WHIP_SCENE.instantiate() as WhipEffect
 	get_parent().add_child(whip)
 
 	var start_pt = global_position + Vector3(0, 0.95, 0)
@@ -335,14 +357,12 @@ func use_whip() -> void:
 	var max_reach: float = 4.5
 	var target_pt = start_pt + forward_dir * max_reach
 
-	# Perform 3D raycast
+	# Perform 3D raycast using cached query
 	var space_state = get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(start_pt, target_pt)
-	query.collision_mask = 5 # Layer 1 (Environment) and Layer 3 (Interactables)
-	query.collide_with_areas = true
-	query.exclude = [self]
+	_whip_ray_query.from = start_pt
+	_whip_ray_query.to = target_pt
 
-	var result = space_state.intersect_ray(query)
+	var result = space_state.intersect_ray(_whip_ray_query)
 	if result:
 		target_pt = result.position
 		var hit_collider = result.collider
@@ -350,7 +370,7 @@ func use_whip() -> void:
 
 		if target_obj.has_method("on_whipped"):
 			target_obj.on_whipped(self)
-		elif target_obj.has_method("interact"):
+		elif target_obj.has_method("interact") and not (target_obj is PushableBlock or target_obj.is_in_group("pushable")):
 			target_obj.interact(self)
 
 	whip.lash(start_pt, target_pt, 0.22)
@@ -359,6 +379,11 @@ func interact() -> void:
 	# If carrying something, drop or place it
 	if carried_item != null:
 		drop_item()
+		return
+
+	# If grabbing a pushable block, release it
+	if is_instance_valid(grabbed_block):
+		grabbed_block.release()
 		return
 
 	# Otherwise, interact with nearby object
@@ -383,7 +408,7 @@ func drop_item() -> void:
 	var item = carried_item
 	carried_item = null
 	item.reparent(get_parent())
-	item.global_position = global_position + mesh_root.basis.z * 1.2 + Vector3.UP * 0.2
+	item.global_position = global_position + mesh_root.global_basis.z * 1.2
 	if item.has_method("on_dropped"):
 		item.on_dropped(self)
 
@@ -393,14 +418,29 @@ func take_damage(amount: int = 1) -> void:
 	current_health -= amount
 	health_changed.emit(current_health)
 
-	if is_instance_valid(hurt_audio):
-		hurt_audio.pitch_scale = randf_range(0.94, 1.06)
-		hurt_audio.play()
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"player_hurt", global_position, 0.94, 1.06, 0.0, 25.0, 5.5)
+
+	if is_instance_valid(SettingsManager) and SettingsManager.controller_rumble:
+		Input.start_joy_vibration(player_id - 1, 0.4, 0.7, 0.22)
+
+	if is_instance_valid(_hud) and _hud.has_method("flash_damage_vignette"):
+		_hud.flash_damage_vignette()
+
+	for cam in _coop_cameras:
+		if is_instance_valid(cam) and cam.has_method("trigger_shake"):
+			cam.trigger_shake(0.12, 0.14)
 
 	if current_health <= 0:
 		current_health = 0
 		_die()
 		return
+
+	# Brief hit-stop pulse (40ms real time)
+	Engine.time_scale = 0.25
+	get_tree().create_timer(0.04, true, false, true).timeout.connect(func():
+		Engine.time_scale = 1.0
+	)
 
 	# Start stagger & invulnerability
 	is_invulnerable = true
@@ -441,17 +481,20 @@ func take_damage(amount: int = 1) -> void:
 	flicker_tween.tween_property(mesh_root, "visible", true, 0.08)
 
 	await get_tree().create_timer(1.0).timeout
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
 	mesh_root.visible = true
 	is_invulnerable = false
 
 func _die() -> void:
 	drop_item()
+	if is_instance_valid(grabbed_block):
+		grabbed_block.release()
 	is_invulnerable = true
 	is_staggering = true
 
-	if is_instance_valid(death_audio):
-		death_audio.pitch_scale = randf_range(0.95, 1.05)
-		death_audio.play()
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"player_death", global_position, 0.95, 1.05, 0.0, 30.0, 7.0)
 
 	if is_instance_valid(hurt_light):
 		hurt_light.light_energy = 5.0
@@ -464,48 +507,46 @@ func _die() -> void:
 	tween.tween_property(mesh_root, "position:y", 0.12, 0.35)
 	player_died.emit(self)
 
-func _create_hurt_sound() -> AudioStreamWAV:
-	var sample_rate = 22050
-	var duration = 0.25
-	var num_samples = int(sample_rate * duration)
-	var data = PackedByteArray()
-	data.resize(num_samples)
-	for i in range(num_samples):
-		var t = float(i) / float(sample_rate)
-		# Flesh / leather impact thud + sharp pain transient + vocal groan
-		var thud = sin(t * 115.0 * TAU) * exp(-t * 16.0)
-		var punch = (sin(t * 1800.0 * TAU) if t < 0.02 else 0.0) * 0.5
-		var pitch = 380.0 - t * 450.0
-		var vocal = sin(t * pitch * TAU + sin(t * 65.0 * TAU) * 1.5) * exp(-t * 10.0) * 0.6
-		var sample = clampf((thud * 0.5 + punch + vocal) * 0.9, -1.0, 1.0)
-		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
+func _update_interact_prompt() -> void:
+	if not is_instance_valid(prompt_label):
+		return
 
-	var stream = AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
-	stream.mix_rate = sample_rate
-	stream.data = data
-	return stream
+	if current_health <= 0 or carried_item != null or (is_instance_valid(SettingsManager) and not SettingsManager.show_interact_prompts):
+		prompt_label.visible = false
+		return
 
-func _create_death_sound() -> AudioStreamWAV:
-	var sample_rate = 22050
-	var duration = 0.55
-	var num_samples = int(sample_rate * duration)
-	var data = PackedByteArray()
-	data.resize(num_samples)
-	for i in range(num_samples):
-		var t = float(i) / float(sample_rate)
-		# Heavy collapse groan + decaying sigh
-		var pitch = 280.0 - t * 240.0
-		var groan = sin(t * pitch * TAU + sin(t * 40.0 * TAU) * 2.0) * exp(-t * 5.0) * 0.6
-		var thud = sin(t * 65.0 * TAU) * exp(-t * 8.0) * 0.4
-		var sample = clampf(groan + thud, -1.0, 1.0)
-		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
+	var target: Node3D = null
+	if is_instance_valid(grabbed_block):
+		target = grabbed_block
+	elif is_instance_valid(current_interactable):
+		target = current_interactable
 
-	var stream = AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
-	stream.mix_rate = sample_rate
-	stream.data = data
-	return stream
+	if target == null:
+		prompt_label.visible = false
+		return
+
+	var action_text := ""
+	if target.has_method("get_interact_prompt"):
+		action_text = target.get_interact_prompt()
+	elif target.is_in_group("carryable"):
+		action_text = "Pick Up"
+	else:
+		action_text = "Interact"
+
+	if action_text.is_empty():
+		prompt_label.visible = false
+		_last_prompt_target = null
+		_last_prompt_text = ""
+		return
+
+	if target != _last_prompt_target or action_text != _last_prompt_text:
+		_last_prompt_target = target
+		_last_prompt_text = action_text
+		var key_hint := "[E]" if player_id == 1 else ("[Enter]" if player_id == 2 else "(A)")
+		prompt_label.text = "%s %s" % [key_hint, action_text]
+
+	prompt_label.global_position = target.global_position + Vector3(0, 1.65, 0)
+	prompt_label.visible = true
 
 func _on_interaction_area_entered(area: Area3D) -> void:
 	var target = area.get_parent()

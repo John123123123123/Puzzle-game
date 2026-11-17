@@ -11,6 +11,10 @@ signal power_changed(is_powered: bool)
 
 func _ready() -> void:
 	add_to_group("sun_receiver")
+	if is_instance_valid(crystal_mesh):
+		var mat = crystal_mesh.get_active_material(0)
+		if mat:
+			crystal_mesh.material_override = mat.duplicate()
 	_update_visuals()
 
 func set_powered(powered: bool) -> void:

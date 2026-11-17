@@ -7,6 +7,16 @@ var current_level: int:
 	set(val): current_level_index = val
 const MAX_PLAYERS: int = 4
 
+const PLAYER_COLORS: Array[Color] = [
+	Color(0.85, 0.25, 0.2), # P1: Red
+	Color(0.2, 0.5, 0.9),  # P2: Blue
+	Color(0.2, 0.75, 0.3), # P3: Green
+	Color(0.9, 0.75, 0.15) # P4: Gold
+]
+
+static func get_player_color(id: int) -> Color:
+	return PLAYER_COLORS[clampi(id - 1, 0, PLAYER_COLORS.size() - 1)]
+
 # Regular exploration & puzzle levels
 var exploration_levels: Array[String] = [
 	"res://scenes/levels/temple_level_2.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
