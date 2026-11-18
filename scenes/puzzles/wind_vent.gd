@@ -108,19 +108,21 @@ func _physics_process(delta: float) -> void:
 
 	# Check if any player carrying a lit Torch is inside the unblocked gust
 	for p in get_tree().get_nodes_in_group("player"):
-		if not (p is Player) or p.current_health <= 0:
+		var player := p as Player
+		if player == null or player.current_health <= 0:
 			continue
-		if not (p.carried_item is Torch) or not p.carried_item.is_lit:
+		var torch := player.carried_item as Torch
+		if torch == null or not torch.is_lit:
 			continue
-		var rel := p.global_position - origin
-		var along := rel.dot(forward)
+		var rel: Vector3 = player.global_position - origin
+		var along: float = rel.dot(forward)
 		if along >= -0.2 and along <= max_dist:
-			var lateral := (rel - forward * along)
+			var lateral: Vector3 = rel - forward * along
 			lateral.y = 0.0
 			if lateral.length() <= gust_width * 0.55:
-				p.carried_item.extinguish()
+				torch.extinguish()
 				if is_instance_valid(AudioManager):
-					AudioManager.play_sfx_3d(&"dart_launch", p.global_position, 0.75, 0.9, -6.0, 18.0, 5.0)
+					AudioManager.play_sfx_3d(&"dart_launch", player.global_position, 0.75, 0.9, -6.0, 18.0, 5.0)
 
 func _update_visual_state() -> void:
 	if is_instance_valid(_gust_mesh):
