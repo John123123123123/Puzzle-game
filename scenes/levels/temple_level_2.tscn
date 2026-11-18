@@ -1,384 +1,297 @@
-[gd_scene format=3 uid="uid://lwmg6stfkbb0"]
+[gd_scene format=3 uid="uid://c5cl5cdu7avcb"]
 
-[ext_resource type="Script" uid="uid://fq47g06hwmr5" path="res://scenes/levels/temple_level_2.gd" id="1_lvl2"]
+[ext_resource type="Script" uid="uid://cdnm8upjf8rus" path="res://scenes/levels/temple_level_2.gd" id="1_lvl3"]
 [ext_resource type="PackedScene" path="res://scenes/camera/coop_camera.tscn" id="2_cam"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/brazier.tscn" id="4_brazier"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/ancient_door.tscn" id="5_door"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/torch.tscn" id="6_torch"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/spike_trap.tscn" id="7_spike"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/wall_lever.tscn" id="8_lever"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/dart_trap.tscn" id="10_dart"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/level_exit.tscn" id="11_exit"]
-[ext_resource type="Shader" uid="uid://dyhtj0sxkdvba" path="res://shaders/ancient_stone_floor.gdshader" id="13_floor_shader"]
-[ext_resource type="Shader" uid="uid://b4qlod3tugpe7" path="res://shaders/ancient_temple_wall.gdshader" id="14_wall_shader"]
-[ext_resource type="PackedScene" path="res://scenes/props/temple_pillar.tscn" id="15_pillar"]
-[ext_resource type="PackedScene" path="res://scenes/effects/temple_dust.tscn" id="16_dust"]
+[ext_resource type="PackedScene" path="res://scenes/puzzles/mirror_pillar.tscn" id="4_mirror"]
+[ext_resource type="PackedScene" path="res://scenes/puzzles/sun_receiver.tscn" id="5_sun"]
+[ext_resource type="PackedScene" path="res://scenes/puzzles/ancient_door.tscn" id="6_door"]
+[ext_resource type="PackedScene" path="res://scenes/puzzles/pressure_plate.tscn" id="7_plate"]
+[ext_resource type="PackedScene" path="res://scenes/puzzles/pushable_block.tscn" id="8_block"]
+[ext_resource type="PackedScene" path="res://scenes/puzzles/level_exit.tscn" id="9_exit"]
+[ext_resource type="Shader" uid="uid://dyhtj0sxkdvba" path="res://shaders/ancient_stone_floor.gdshader" id="11_floor_shader"]
+[ext_resource type="Shader" uid="uid://b4qlod3tugpe7" path="res://shaders/ancient_temple_wall.gdshader" id="12_wall_shader"]
+[ext_resource type="PackedScene" path="res://scenes/props/temple_pillar.tscn" id="13_pillar"]
+[ext_resource type="PackedScene" path="res://scenes/props/skylight_beam.tscn" id="14_beam"]
+[ext_resource type="PackedScene" path="res://scenes/effects/temple_dust.tscn" id="15_dust"]
 
-[sub_resource type="Environment" id="Environment_crypt"]
+[sub_resource type="Environment" id="Environment_sanctum"]
 background_mode = 1
-background_color = Color(0.03, 0.03, 0.06, 1)
+background_color = Color(0.08, 0.06, 0.04, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.12, 0.16, 0.24, 1)
-ambient_light_energy = 0.55
+ambient_light_color = Color(0.38, 0.32, 0.22, 1)
+ambient_light_energy = 0.95
 tonemap_mode = 2
 tonemap_exposure = 1.05
 ssao_enabled = true
-ssao_radius = 1.8
-ssao_intensity = 2.6
+ssao_radius = 1.6
+ssao_intensity = 2.4
 ssil_enabled = true
 glow_enabled = true
-glow_bloom = 0.25
+glow_bloom = 0.28
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.018
-volumetric_fog_albedo = Color(0.65, 0.75, 0.95, 1)
-volumetric_fog_ambient_inject = 0.25
+volumetric_fog_density = 0.012
+volumetric_fog_albedo = Color(1, 0.92, 0.75, 1)
+volumetric_fog_ambient_inject = 0.22
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_floor_crypt"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_floor_gold"]
 render_priority = 0
-shader = ExtResource("13_floor_shader")
-shader_parameter/base_color = Color(0.32, 0.32, 0.36, 1)
-shader_parameter/mortar_color = Color(0.12, 0.12, 0.15, 1)
-shader_parameter/edge_highlight = Color(0.42, 0.42, 0.48, 1)
+shader = ExtResource("11_floor_shader")
+shader_parameter/base_color = Color(0.52, 0.45, 0.34, 1)
+shader_parameter/mortar_color = Color(0.2, 0.16, 0.12, 1)
+shader_parameter/edge_highlight = Color(0.65, 0.58, 0.44, 1)
 shader_parameter/sand_color = Color(0.52, 0.45, 0.33, 1)
-shader_parameter/tile_size = 1.3
+shader_parameter/tile_size = 1.5
 shader_parameter/tile_aspect = 1.35
 shader_parameter/mortar_width = 0.035
 shader_parameter/bevel_width = 0.055
-shader_parameter/roughness_val = 0.85
+shader_parameter/roughness_val = 0.78
 shader_parameter/crack_intensity = 0.35
 
-[sub_resource type="BoxMesh" id="BoxMesh_floor_r1"]
-material = SubResource("ShaderMaterial_floor_crypt")
-size = Vector3(14, 0.2, 14)
+[sub_resource type="BoxMesh" id="BoxMesh_floor_main"]
+material = SubResource("ShaderMaterial_floor_gold")
+size = Vector3(18, 0.2, 18)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor_r1"]
-size = Vector3(14, 0.2, 14)
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor_main"]
+size = Vector3(18, 0.2, 18)
 
-[sub_resource type="BoxMesh" id="BoxMesh_floor_r2"]
-material = SubResource("ShaderMaterial_floor_crypt")
-size = Vector3(10, 0.2, 16)
+[sub_resource type="BoxMesh" id="BoxMesh_floor_sanctum"]
+material = SubResource("ShaderMaterial_floor_gold")
+size = Vector3(14, 0.2, 12)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor_r2"]
-size = Vector3(10, 0.2, 16)
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor_sanctum"]
+size = Vector3(14, 0.2, 12)
 
-[sub_resource type="BoxMesh" id="BoxMesh_floor_r3"]
-material = SubResource("ShaderMaterial_floor_crypt")
-size = Vector3(12, 0.2, 12)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor_r3"]
-size = Vector3(12, 0.2, 12)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_wall_crypt"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wall_gold"]
 render_priority = 0
-shader = ExtResource("14_wall_shader")
-shader_parameter/wall_color = Color(0.24, 0.24, 0.28, 1)
-shader_parameter/brick_dark = Color(0.14, 0.14, 0.18, 1)
-shader_parameter/mortar_color = Color(0.1, 0.1, 0.12, 1)
-shader_parameter/frieze_color = Color(0.35, 0.38, 0.45, 1)
+shader = ExtResource("12_wall_shader")
+shader_parameter/wall_color = Color(0.42, 0.35, 0.26, 1)
+shader_parameter/brick_dark = Color(0.26, 0.21, 0.16, 1)
+shader_parameter/mortar_color = Color(0.18, 0.14, 0.1, 1)
+shader_parameter/frieze_color = Color(0.68, 0.56, 0.34, 1)
 shader_parameter/brick_width = 1.4
 shader_parameter/brick_height = 0.7
 
-[sub_resource type="BoxMesh" id="BoxMesh_wall_14"]
-material = SubResource("ShaderMaterial_wall_crypt")
-size = Vector3(14, 3.8, 0.8)
+[sub_resource type="BoxMesh" id="BoxMesh_wall_18"]
+material = SubResource("ShaderMaterial_wall_gold")
+size = Vector3(18, 4.2, 0.8)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_wall_14"]
-size = Vector3(14, 3.8, 0.8)
-
-[sub_resource type="BoxMesh" id="BoxMesh_wall_16"]
-material = SubResource("ShaderMaterial_wall_crypt")
-size = Vector3(16, 3.8, 0.8)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_wall_16"]
-size = Vector3(16, 3.8, 0.8)
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_18"]
+size = Vector3(18, 4.2, 0.8)
 
 [sub_resource type="BoxMesh" id="BoxMesh_wall_12"]
-material = SubResource("ShaderMaterial_wall_crypt")
-size = Vector3(12, 3.8, 0.8)
+material = SubResource("ShaderMaterial_wall_gold")
+size = Vector3(12, 4.2, 0.8)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wall_12"]
-size = Vector3(12, 3.8, 0.8)
+size = Vector3(12, 4.2, 0.8)
 
-[sub_resource type="BoxMesh" id="BoxMesh_wall_5_1"]
-material = SubResource("ShaderMaterial_wall_crypt")
-size = Vector3(5.1, 3.8, 0.8)
+[sub_resource type="BoxMesh" id="BoxMesh_wall_14"]
+material = SubResource("ShaderMaterial_wall_gold")
+size = Vector3(14, 4.2, 0.8)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_wall_5_1"]
-size = Vector3(5.1, 3.8, 0.8)
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_14"]
+size = Vector3(14, 4.2, 0.8)
 
-[sub_resource type="BoxMesh" id="BoxMesh_wall_4_1"]
-material = SubResource("ShaderMaterial_wall_crypt")
-size = Vector3(4.1, 3.8, 0.8)
+[sub_resource type="BoxMesh" id="BoxMesh_wall_7_1"]
+material = SubResource("ShaderMaterial_wall_gold")
+size = Vector3(7.1, 4.2, 0.8)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_wall_4_1"]
-size = Vector3(4.1, 3.8, 0.8)
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_7_1"]
+size = Vector3(7.1, 4.2, 0.8)
 
-[node name="TempleLevel2" type="Node3D" unique_id=1365075578]
-script = ExtResource("1_lvl2")
+[node name="TempleLevel3" type="Node3D" unique_id=980856477]
+script = ExtResource("1_lvl3")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=431138237]
-environment = SubResource("Environment_crypt")
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1584844196]
+environment = SubResource("Environment_sanctum")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1185144280]
-transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 10, 0)
-light_color = Color(0.55, 0.65, 0.85, 1)
-light_energy = 0.45
-light_volumetric_fog_energy = 1.8
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=229465804]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 14, 0)
+light_color = Color(1, 0.94, 0.78, 1)
+light_energy = 1.35
+light_volumetric_fog_energy = 2.4
 shadow_enabled = true
 shadow_blur = 1.5
 
-[node name="CoopCamera" parent="." unique_id=1491282130 instance=ExtResource("2_cam")]
+[node name="CoopCamera" parent="." unique_id=1228460914 instance=ExtResource("2_cam")]
 
-[node name="HUD" parent="." unique_id=219451175 instance=ExtResource("3_hud")]
+[node name="HUD" parent="." unique_id=1735428425 instance=ExtResource("3_hud")]
 
-[node name="SpawnPoints" type="Node3D" parent="." unique_id=2038974754]
+[node name="SpawnPoints" type="Node3D" parent="." unique_id=1725662648]
 
-[node name="Spawn1" type="Marker3D" parent="SpawnPoints" unique_id=804365702]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.2, 4.5)
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints" unique_id=2136308890]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.2, 6.5)
 
-[node name="Spawn2" type="Marker3D" parent="SpawnPoints" unique_id=1760596106]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.2, 4.5)
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints" unique_id=389168873]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.2, 6.5)
 
-[node name="Spawn3" type="Marker3D" parent="SpawnPoints" unique_id=1375678796]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0.2, 5.5)
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints" unique_id=746720907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0.2, 7.5)
 
-[node name="Spawn4" type="Marker3D" parent="SpawnPoints" unique_id=460157101]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.2, 5.5)
+[node name="Spawn4" type="Marker3D" parent="SpawnPoints" unique_id=1793619919]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.2, 7.5)
 
-[node name="Architecture" type="Node3D" parent="." unique_id=1460558437]
+[node name="Architecture" type="Node3D" parent="." unique_id=1573727745]
 
-[node name="FloorR1" type="StaticBody3D" parent="Architecture" unique_id=2042090615]
+[node name="FloorMain" type="StaticBody3D" parent="Architecture" unique_id=1130909307]
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/FloorR1" unique_id=1549300705]
-mesh = SubResource("BoxMesh_floor_r1")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/FloorMain" unique_id=1249015437]
+mesh = SubResource("BoxMesh_floor_main")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/FloorR1" unique_id=1723766716]
-shape = SubResource("BoxShape3D_floor_r1")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/FloorMain" unique_id=789227454]
+shape = SubResource("BoxShape3D_floor_main")
 
-[node name="FloorR2" type="StaticBody3D" parent="Architecture" unique_id=1407386023]
+[node name="FloorSanctum" type="StaticBody3D" parent="Architecture" unique_id=158931242]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -15)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/FloorR2" unique_id=782347372]
-mesh = SubResource("BoxMesh_floor_r2")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/FloorSanctum" unique_id=225615241]
+mesh = SubResource("BoxMesh_floor_sanctum")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/FloorR2" unique_id=1849946015]
-shape = SubResource("BoxShape3D_floor_r2")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/FloorSanctum" unique_id=1935621251]
+shape = SubResource("BoxShape3D_floor_sanctum")
 
-[node name="FloorR3" type="StaticBody3D" parent="Architecture" unique_id=1248587111]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -29)
+[node name="Walls" type="Node3D" parent="Architecture" unique_id=1410622723]
+
+[node name="WallMainBack" type="StaticBody3D" parent="Architecture/Walls" unique_id=424088713 groups=["wall"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 9)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/FloorR3" unique_id=1552734991]
-mesh = SubResource("BoxMesh_floor_r3")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallMainBack" unique_id=1053554967]
+mesh = SubResource("BoxMesh_wall_18")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/FloorR3" unique_id=1145275796]
-shape = SubResource("BoxShape3D_floor_r3")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallMainBack" unique_id=71553792]
+shape = SubResource("BoxShape3D_wall_18")
 
-[node name="Walls" type="Node3D" parent="Architecture" unique_id=791651157]
-
-[node name="WallR1Back" type="StaticBody3D" parent="Architecture/Walls" unique_id=745727382 groups=["wall"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 7)
+[node name="WallMainLeft" type="StaticBody3D" parent="Architecture/Walls" unique_id=1589354564 groups=["wall"]]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9, 2.1, 0)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR1Back" unique_id=1589229868]
-mesh = SubResource("BoxMesh_wall_14")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallMainLeft" unique_id=1954189699]
+mesh = SubResource("BoxMesh_wall_18")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR1Back" unique_id=1052729223]
-shape = SubResource("BoxShape3D_wall_14")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallMainLeft" unique_id=663829036]
+shape = SubResource("BoxShape3D_wall_18")
 
-[node name="WallR1Left" type="StaticBody3D" parent="Architecture/Walls" unique_id=1065333048 groups=["wall"]]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -7, 1.9, 0)
+[node name="WallMainRight" type="StaticBody3D" parent="Architecture/Walls" unique_id=2032654227 groups=["wall"]]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9, 2.1, 0)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR1Left" unique_id=120470401]
-mesh = SubResource("BoxMesh_wall_14")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallMainRight" unique_id=1562202401]
+mesh = SubResource("BoxMesh_wall_18")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR1Left" unique_id=527549533]
-shape = SubResource("BoxShape3D_wall_14")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallMainRight" unique_id=2023301977]
+shape = SubResource("BoxShape3D_wall_18")
 
-[node name="WallR1Right" type="StaticBody3D" parent="Architecture/Walls" unique_id=1180392586 groups=["wall"]]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 7, 1.9, 0)
+[node name="WallSanctumLeft" type="StaticBody3D" parent="Architecture/Walls" unique_id=1540408011 groups=["wall"]]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -7, 2.1, -15)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR1Right" unique_id=1171444870]
-mesh = SubResource("BoxMesh_wall_14")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR1Right" unique_id=1889058108]
-shape = SubResource("BoxShape3D_wall_14")
-
-[node name="WallR2Left" type="StaticBody3D" parent="Architecture/Walls" unique_id=1585904157 groups=["wall"]]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -5, 1.9, -15)
-collision_mask = 6
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR2Left" unique_id=1578182349]
-mesh = SubResource("BoxMesh_wall_16")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR2Left" unique_id=1648930514]
-shape = SubResource("BoxShape3D_wall_16")
-
-[node name="WallR2Right" type="StaticBody3D" parent="Architecture/Walls" unique_id=1788862497 groups=["wall"]]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 5, 1.9, -15)
-collision_mask = 6
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR2Right" unique_id=881127161]
-mesh = SubResource("BoxMesh_wall_16")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR2Right" unique_id=1791964321]
-shape = SubResource("BoxShape3D_wall_16")
-
-[node name="WallR3Left" type="StaticBody3D" parent="Architecture/Walls" unique_id=132431732 groups=["wall"]]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -6, 1.9, -29)
-collision_mask = 6
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR3Left" unique_id=1342731164]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallSanctumLeft" unique_id=548274372]
 mesh = SubResource("BoxMesh_wall_12")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR3Left" unique_id=1188817108]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallSanctumLeft" unique_id=1371708228]
 shape = SubResource("BoxShape3D_wall_12")
 
-[node name="WallR3Right" type="StaticBody3D" parent="Architecture/Walls" unique_id=28551411 groups=["wall"]]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 6, 1.9, -29)
+[node name="WallSanctumRight" type="StaticBody3D" parent="Architecture/Walls" unique_id=330304575 groups=["wall"]]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 7, 2.1, -15)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR3Right" unique_id=106528549]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallSanctumRight" unique_id=1056329611]
 mesh = SubResource("BoxMesh_wall_12")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR3Right" unique_id=114558788]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallSanctumRight" unique_id=1544592204]
 shape = SubResource("BoxShape3D_wall_12")
 
-[node name="WallR3Back" type="StaticBody3D" parent="Architecture/Walls" unique_id=576438708 groups=["wall"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, -35)
+[node name="WallSanctumBack" type="StaticBody3D" parent="Architecture/Walls" unique_id=1450398594 groups=["wall"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, -21)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR3Back" unique_id=1372722733]
-mesh = SubResource("BoxMesh_wall_12")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallSanctumBack" unique_id=1690630508]
+mesh = SubResource("BoxMesh_wall_14")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR3Back" unique_id=758296263]
-shape = SubResource("BoxShape3D_wall_12")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallSanctumBack" unique_id=33763472]
+shape = SubResource("BoxShape3D_wall_14")
 
-[node name="WallR1PartitionL" type="StaticBody3D" parent="Architecture/Walls" unique_id=1077680078 groups=["wall"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.45, 1.9, -7)
+[node name="WallSanctumPartitionL" type="StaticBody3D" parent="Architecture/Walls" unique_id=723128060 groups=["wall"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.45, 2.1, -9)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR1PartitionL" unique_id=683453195]
-mesh = SubResource("BoxMesh_wall_5_1")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallSanctumPartitionL" unique_id=1807137006]
+mesh = SubResource("BoxMesh_wall_7_1")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR1PartitionL" unique_id=887264808]
-shape = SubResource("BoxShape3D_wall_5_1")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallSanctumPartitionL" unique_id=1326230000]
+shape = SubResource("BoxShape3D_wall_7_1")
 
-[node name="WallR1PartitionR" type="StaticBody3D" parent="Architecture/Walls" unique_id=197137951 groups=["wall"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.45, 1.9, -7)
+[node name="WallSanctumPartitionR" type="StaticBody3D" parent="Architecture/Walls" unique_id=1977190152 groups=["wall"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.45, 2.1, -9)
 collision_mask = 6
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR1PartitionR" unique_id=509665853]
-mesh = SubResource("BoxMesh_wall_5_1")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallSanctumPartitionR" unique_id=801051853]
+mesh = SubResource("BoxMesh_wall_7_1")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR1PartitionR" unique_id=1270160299]
-shape = SubResource("BoxShape3D_wall_5_1")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallSanctumPartitionR" unique_id=1549500291]
+shape = SubResource("BoxShape3D_wall_7_1")
 
-[node name="WallR2PartitionL" type="StaticBody3D" parent="Architecture/Walls" unique_id=1526227097 groups=["wall"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.95, 1.9, -23)
-collision_mask = 6
+[node name="Pillars" type="Node3D" parent="Architecture" unique_id=1825999041]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR2PartitionL" unique_id=753520929]
-mesh = SubResource("BoxMesh_wall_4_1")
+[node name="Pillar1" parent="Architecture/Pillars" unique_id=882779238 instance=ExtResource("13_pillar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 0.1, 7)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR2PartitionL" unique_id=1441333873]
-shape = SubResource("BoxShape3D_wall_4_1")
+[node name="Pillar2" parent="Architecture/Pillars" unique_id=1385551138 instance=ExtResource("13_pillar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0.1, 7)
 
-[node name="WallR2PartitionR" type="StaticBody3D" parent="Architecture/Walls" unique_id=1970566570 groups=["wall"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.95, 1.9, -23)
-collision_mask = 6
+[node name="Pillar3" parent="Architecture/Pillars" unique_id=1205593132 instance=ExtResource("13_pillar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 0.1, -7)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Architecture/Walls/WallR2PartitionR" unique_id=2082221043]
-mesh = SubResource("BoxMesh_wall_4_1")
+[node name="Pillar4" parent="Architecture/Pillars" unique_id=523167968 instance=ExtResource("13_pillar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0.1, -7)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Walls/WallR2PartitionR" unique_id=378322709]
-shape = SubResource("BoxShape3D_wall_4_1")
+[node name="Atmosphere" type="Node3D" parent="." unique_id=17656366]
 
-[node name="Pillars" type="Node3D" parent="Architecture" unique_id=2043550662]
+[node name="SunDust" parent="Atmosphere" unique_id=883225943 instance=ExtResource("15_dust")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 
-[node name="Pillar1" parent="Architecture/Pillars" unique_id=254615147 instance=ExtResource("15_pillar")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8, 0.1, 5)
+[node name="SkylightBeam1" parent="Atmosphere" unique_id=1789965191 instance=ExtResource("14_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 0)
 
-[node name="Pillar2" parent="Architecture/Pillars" unique_id=335128376 instance=ExtResource("15_pillar")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0.1, 5)
+[node name="Chamber" type="Node3D" parent="." unique_id=28174347]
 
-[node name="Pillar3" parent="Architecture/Pillars" unique_id=175088177 instance=ExtResource("15_pillar")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8, 0.1, -5)
+[node name="Mirror1" parent="Chamber" unique_id=1471053363 instance=ExtResource("4_mirror")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0.1, 0)
 
-[node name="Pillar4" parent="Architecture/Pillars" unique_id=868042437 instance=ExtResource("15_pillar")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0.1, -5)
+[node name="Mirror2" parent="Chamber" unique_id=212921096 instance=ExtResource("4_mirror")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.1, 0)
+current_step = 2
 
-[node name="Atmosphere" type="Node3D" parent="." unique_id=230315404]
+[node name="SunReceiver" parent="Chamber" unique_id=1630031941 instance=ExtResource("5_sun")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1.1, -8.5)
+required_target = NodePath("../PharaohGate")
 
-[node name="CryptDust" parent="Atmosphere" unique_id=1427510330 instance=ExtResource("16_dust")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -10)
+[node name="PharaohGate" parent="Chamber" unique_id=845258119 instance=ExtResource("6_door")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -9)
 
-[node name="Room1" type="Node3D" parent="." unique_id=1163496216]
+[node name="Plate1" parent="Chamber" unique_id=886927493 instance=ExtResource("7_plate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.1, 3.5)
 
-[node name="Brazier1" parent="Room1" unique_id=163967255 instance=ExtResource("4_brazier")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0.1, -1)
+[node name="Plate2" parent="Chamber" unique_id=1763830873 instance=ExtResource("7_plate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.1, 3.5)
 
-[node name="Brazier2" parent="Room1" unique_id=1429921837 instance=ExtResource("4_brazier")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.1, -1)
+[node name="Plate3" parent="Chamber" unique_id=2026109964 instance=ExtResource("7_plate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.1, -4)
 
-[node name="Brazier3" parent="Room1" unique_id=714959155 instance=ExtResource("4_brazier")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -4)
+[node name="Plate4" parent="Chamber" unique_id=1356410415 instance=ExtResource("7_plate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.1, -4)
 
-[node name="TorchSpawn1" parent="Room1" unique_id=1572482059 instance=ExtResource("6_torch")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.1, 2)
+[node name="BlockA" parent="Chamber" unique_id=477150441 instance=ExtResource("8_block")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 0.1, 2)
 
-[node name="TorchSpawn2" parent="Room1" unique_id=1497549183 instance=ExtResource("6_torch")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.1, 2)
+[node name="BlockB" parent="Chamber" unique_id=1881756511 instance=ExtResource("8_block")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 0.1, 2)
 
-[node name="GateToRoom2" parent="Room1" unique_id=1488483276 instance=ExtResource("5_door")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -7)
-
-[node name="Room2" type="Node3D" parent="." unique_id=2111838740]
-
-[node name="Spike1" parent="Room2" unique_id=1022515276 instance=ExtResource("7_spike")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.1, -11)
-cycle_time = 2.6
-
-[node name="Spike2" parent="Room2" unique_id=1462696077 instance=ExtResource("7_spike")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.1, -11)
-cycle_time = 2.6
-
-[node name="Spike3" parent="Room2" unique_id=137955178 instance=ExtResource("7_spike")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.1, -15)
-cycle_time = 3.2
-
-[node name="Spike4" parent="Room2" unique_id=1845318248 instance=ExtResource("7_spike")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.1, -15)
-cycle_time = 3.2
-
-[node name="LeverA" parent="Room2" unique_id=287428619 instance=ExtResource("8_lever")]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -4.4478645, 1.2, -13)
-targets = Array[NodePath]([NodePath("../GateToRoom3")])
-
-[node name="LeverB" parent="Room2" unique_id=1895225793 instance=ExtResource("8_lever")]
-transform = Transform3D(4.37114e-08, 0, -1, 0, 1, 0, 1, 0, 4.37114e-08, 4.4416585, 1.2, -13)
-targets = Array[NodePath]([NodePath("../GateToRoom3")])
-
-[node name="DartTrap1" parent="Room2" unique_id=1448307367 instance=ExtResource("10_dart")]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -4.298501, 0.2, -18)
-shoot_interval = 2.0
-
-[node name="DartTrap2" parent="Room2" unique_id=301844775 instance=ExtResource("10_dart")]
-transform = Transform3D(4.37114e-08, 0, -1, 0, 1, 0, 1, 0, 4.37114e-08, 4.282194, 0.2, -18)
-shoot_interval = 2.0
-
-[node name="GateToRoom3" parent="Room2" unique_id=450723404 instance=ExtResource("5_door")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -23)
-required_triggers = 2
-
-[node name="Room3" type="Node3D" parent="." unique_id=238376648]
-
-[node name="LevelExit" parent="." unique_id=1570775937 instance=ExtResource("11_exit")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -34.283474)
-prompt_text = "LEVEL 1 COMPLETE!
-ONWARD TO THE CHAMBER OF MIRRORS..."
+[node name="LevelExit" parent="." unique_id=699423382 instance=ExtResource("9_exit")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -20.368065)
+prompt_text = "LEVEL 2 COMPLETE!
+ONWARD TO THE TEMPLE OF THE GOLDEN IDOL..."

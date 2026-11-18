@@ -19,12 +19,12 @@ static func get_player_color(id: int) -> Color:
 
 # Regular exploration & puzzle levels
 var exploration_levels: Array[String] = [
-	"res://scenes/levels/temple_level_2.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
-	"res://scenes/levels/temple_level_3.tscn", # Level 2: Chamber of Mirrors (Light beam & mirror puzzle)
+	"res://scenes/levels/temple_level_1.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
+	"res://scenes/levels/temple_level_2.tscn", # Level 2: Chamber of Mirrors (Light beam & mirror puzzle)
 ]
 
 # The Golden Idol Temple & Giant Boulder Escape is ALWAYS the grand finale (always the last level)
-const FINALE_LEVEL: String = "res://scenes/levels/temple_level_1.tscn"
+const FINALE_LEVEL: String = "res://scenes/levels/temple_level_3.tscn"
 
 const MAIN_MENU_SCENE: String = "res://scenes/ui/main_menu.tscn"
 const PROGRESS_PATH: String = "user://progress.cfg"

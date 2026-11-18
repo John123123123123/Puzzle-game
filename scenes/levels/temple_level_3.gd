@@ -1,77 +1,163 @@
 extends "res://scenes/levels/base_temple_level.gd"
-## Campaign Level 2: Pharaoh's Hall of Mirrors (Light beam & mirror puzzle)
-## Mapped as index 1 in GameManager.exploration_levels.
+## Campaign Level 3 (FINALE): Golden Idol Temple & Giant Boulder Escape
+## Mapped as FINALE_LEVEL in GameManager.
 
-@onready var level_exit: LevelExit = $LevelExit
+@export var start_with_two_players: bool = false
 
-# Mirror & Light Beam elements
-@onready var mirror_1: MirrorPillar = $Chamber/Mirror1
-@onready var mirror_2: MirrorPillar = $Chamber/Mirror2
-@onready var sun_receiver: SunReceiver = $Chamber/SunReceiver
-@onready var pharaoh_gate: AncientDoor = $Chamber/PharaohGate
+@onready var golden_idol: GoldenIdol = $Room3/GoldenIdol
+@onready var giant_boulder: GiantBoulder = $Room3/GiantBoulder
+@onready var pedestal: StaticBody3D = $Room3/Pedestal
+@onready var escape_zone: Area3D = $Architecture/EscapeZone
+@onready var gate_room2: AncientDoor = $Room1/GateToRoom2
+@onready var gate_room3: AncientDoor = $Room2/GateToRoom3
 
-# Co-op plates
-@onready var plate_1: PressurePlate = $Chamber/Plate1
-@onready var plate_2: PressurePlate = $Chamber/Plate2
-@onready var plate_3: PressurePlate = $Chamber/Plate3
-@onready var plate_4: PressurePlate = $Chamber/Plate4
+var is_escaping: bool = false
+var _gate_room2_base_triggers: int = 2
 
-var _pushable_blocks: Array = []
+# Tracks which players have returned to spawn after grabbing the idol
+var players_in_escape_zone: Dictionary = {}
 
 func _ready() -> void:
 	super._ready()
-	hud.set_objective("Level 2: Direct the sunbeam through the mirrors to break the seal!")
-	spawn_initial_players(get_configured_player_count(1))
-	_pushable_blocks = get_tree().get_nodes_in_group("pushable")
+	var count = get_configured_player_count(2 if start_with_two_players else 1)
 
-	# Initial light beam check
-	mirror_1.rotated.connect(_evaluate_mirrors)
-	mirror_2.rotated.connect(_evaluate_mirrors)
-	_evaluate_mirrors()
+	# Single-player friendly: Gate 1 only requires 1 trigger when solo
+	if is_instance_valid(gate_room2):
+		_gate_room2_base_triggers = gate_room2.required_triggers
+		if count == 1:
+			gate_room2.required_triggers = 1
+
+	if hud:
+		var lvl_num = GameManager.current_level_index if is_instance_valid(GameManager) else 3
+		if count == 1:
+			hud.set_objective("Level %d (FINALE): Solve the temple riddles and find the mythical Golden Idol!" % lvl_num)
+		else:
+			hud.set_objective("Level %d (FINALE): Cooperate to venture deep into the temple to reach the Golden Idol!" % lvl_num)
+
+	spawn_initial_players(count)
+
+	if golden_idol:
+		golden_idol.idol_taken.connect(_on_golden_idol_taken)
+
+	if escape_zone:
+		escape_zone.body_entered.connect(_on_escape_zone_entered)
+		escape_zone.body_exited.connect(_on_escape_zone_exited)
 
 	var scarab_spots: Array[Vector3] = []
-	if is_instance_valid(plate_3):
-		scarab_spots.append(plate_3.global_position + Vector3(0.0, 0.0, 1.8))
-	if is_instance_valid(plate_4):
-		scarab_spots.append(plate_4.global_position + Vector3(0.0, 0.0, 1.8))
-	if is_instance_valid(pharaoh_gate):
-		scarab_spots.append(pharaoh_gate.global_position + Vector3(0.0, 0.0, -2.5))
+	if is_instance_valid(gate_room2):
+		scarab_spots.append(gate_room2.global_position + Vector3(-2.0, 0.0, 2.0))
+	if is_instance_valid(gate_room3):
+		scarab_spots.append(gate_room3.global_position + Vector3(2.0, 0.0, 2.0))
+	if is_instance_valid(pedestal):
+		scarab_spots.append(pedestal.global_position + Vector3(2.5, 0.0, 0.0))
 	spawn_scarabs(scarab_spots)
 
-func _physics_process(_delta: float) -> void:
-	# Only re-trace when a mirror is turning or a pushable block is moving
-	var needs_update := mirror_1.is_turning or mirror_2.is_turning
-	if not needs_update:
-		for b in _pushable_blocks:
-			if is_instance_valid(b) and b.velocity.length_squared() > 0.001:
-				needs_update = true
-				break
-	if needs_update:
-		_evaluate_mirrors()
+func on_player_joined(total_players: int) -> void:
+	if total_players >= 2 and is_instance_valid(gate_room2) and not gate_room2.is_open:
+		gate_room2.required_triggers = _gate_room2_base_triggers
+		gate_room2._evaluate_door_state()
 
-func _evaluate_mirrors(_angle: float = 0.0) -> void:
-	var all_mirrors: Array = [mirror_1, mirror_2]
-	var lit_mirrors: Array[MirrorPillar] = []
-	var powered_receivers: Array[SunReceiver] = []
+# ---------------------------------------------------------------------------
+# Golden Idol grab sequence
+# ---------------------------------------------------------------------------
 
-	# Mirror 1 receives direct skylight beam from above
-	var current: MirrorPillar = mirror_1
-	while is_instance_valid(current) and not lit_mirrors.has(current):
-		lit_mirrors.append(current)
-		var trace := current.trace_beam(30.0)
-		current.set_beam_active(true, trace["length"])
+func _on_golden_idol_taken(_by_player: Player) -> void:
+	if is_escaping:
+		return
+	is_escaping = true
 
-		if trace["hit_receiver"] is SunReceiver:
-			powered_receivers.append(trace["hit_receiver"])
-			current = null
-		elif trace["hit_mirror"] is MirrorPillar:
-			current = trace["hit_mirror"]
-		else:
-			current = null
+	if players.size() <= 1:
+		hud.set_objective("WARNING: TEMPLE COLLAPSE! Escape the boulder and run to the entrance!")
+		hud.show_victory("THE GOLDEN IDOL IS YOURS!\nRUN TO THE ENTRANCE!")
+	else:
+		hud.set_objective("WARNING: TEMPLE COLLAPSE! All players run to the entrance!")
+		hud.show_victory("THE GOLDEN IDOL IS YOURS!\nEVERYONE BACK TO THE ENTRANCE!")
 
-	for m in all_mirrors:
-		if is_instance_valid(m) and not lit_mirrors.has(m):
-			m.set_beam_active(false)
+	_sink_pedestal()
+	_open_all_doors()
+	_trigger_temple_rumble()
 
-	if is_instance_valid(sun_receiver):
-		sun_receiver.set_powered(powered_receivers.has(sun_receiver))
+	await get_tree().create_timer(2.0).timeout
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
+	if is_instance_valid(giant_boulder):
+		giant_boulder.trigger_roll()
+
+func _sink_pedestal() -> void:
+	if not is_instance_valid(pedestal):
+		return
+	var tween = create_tween()
+	tween.tween_property(pedestal, "position:y", pedestal.position.y - 2.5, 1.5) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(func():
+		var col = pedestal.get_node_or_null("CollisionShape3D")
+		if col:
+			col.set_deferred("disabled", true)
+	)
+
+func _open_all_doors() -> void:
+	var all_doors = get_tree().get_nodes_in_group("ancient_door")
+	for door in all_doors:
+		if door is AncientDoor:
+			door.force_open_permanent()
+
+	if is_instance_valid(gate_room2):
+		gate_room2.force_open_permanent()
+	if is_instance_valid(gate_room3):
+		gate_room3.force_open_permanent()
+
+# ---------------------------------------------------------------------------
+# Escape zone — track ALL spawned players returning to spawn
+# ---------------------------------------------------------------------------
+
+func _on_escape_zone_entered(body: Node3D) -> void:
+	if not is_escaping or level_complete:
+		return
+	if not (body is Player):
+		return
+
+	players_in_escape_zone[body.player_id] = true
+	_check_all_players_escaped()
+
+func _on_escape_zone_exited(body: Node3D) -> void:
+	if not (body is Player):
+		return
+	players_in_escape_zone.erase(body.player_id)
+
+func _check_all_players_escaped() -> void:
+	if level_complete:
+		return
+
+	var living_count: int = 0
+	var safe_count: int = 0
+	for id in players.keys():
+		var player = players[id]
+		if is_instance_valid(player) and player.current_health <= 0:
+			continue
+		living_count += 1
+		if players_in_escape_zone.has(id):
+			safe_count += 1
+
+	if is_instance_valid(hud) and living_count > 0:
+		hud.set_objective("ESCAPE! Run to the entrance! (%d/%d players safe)" % [safe_count, living_count])
+
+	if safe_count < living_count:
+		return
+
+	level_complete = true
+	_show_level_complete()
+
+func _show_level_complete() -> void:
+	var current_level = 1
+	if is_instance_valid(GameManager):
+		current_level = GameManager.current_level_index
+
+	hud.show_level_complete(current_level)
+
+# ---------------------------------------------------------------------------
+# Camera rumble helper
+# ---------------------------------------------------------------------------
+
+func _trigger_temple_rumble() -> void:
+	if is_instance_valid(coop_camera):
+		coop_camera.trigger_shake(0.18, 2.0)
