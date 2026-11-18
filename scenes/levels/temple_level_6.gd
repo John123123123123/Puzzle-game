@@ -52,7 +52,7 @@ func _build_level() -> void:
 	add_child(b2)
 
 	var plate_a := spawn_prop(PLATE_SCENE, Vector3(0.0, 0.0, 7.5)) as PressurePlate
-	plate_a.linked_targets = [b2.get_path()]
+	plate_a.state_changed.connect(func(pressed: bool): b2.set_extended(pressed))
 
 	# Island C (Torch + Scarab 3)
 	build_floor(Vector3(0.0, -0.1, -13.5), Vector3(10.0, 0.2, 7.0))
@@ -69,7 +69,7 @@ func _build_level() -> void:
 	add_child(b3)
 
 	var lever := spawn_prop(LEVER_SCENE, Vector3(4.0, 0.0, -2.0), -90.0) as WallLever
-	lever.linked_targets = [b3.get_path()]
+	lever.toggled.connect(func(on: bool): b3.set_extended(on))
 
 	# Island D (Final Brazier + Door + Exit)
 	build_floor(Vector3(15.0, -0.1, -13.5), Vector3(10.0, 0.2, 10.0))
@@ -79,6 +79,6 @@ func _build_level() -> void:
 	door.required_triggers = 1
 
 	var brazier := spawn_prop(BRAZIER_SCENE, Vector3(12.5, 0.0, -12.0)) as Brazier
-	brazier.linked_targets = [door.get_path()]
+	brazier.linked_targets.append(door.get_path())
 
 	spawn_prop(EXIT_SCENE, Vector3(15.0, 0.0, -17.0))

@@ -50,7 +50,7 @@ func _build_level() -> void:
 	plate_a.set_script(HEAVY_PLATE_SCRIPT)
 	plate_a.position = Vector3(0.0, 0.0, 8.8)
 	plate_a.stay_pressed = true
-	plate_a.linked_targets = [gate_a.get_path()]
+	plate_a.linked_targets.append(gate_a.get_path())
 	add_child(plate_a)
 
 	# Main Sanctum
@@ -77,7 +77,7 @@ func _build_level() -> void:
 	var crate_gate := spawn_prop(DOOR_SCENE, Vector3(4.5, 0.0, -6.0), 90.0) as AncientDoor
 	crate_gate.required_triggers = 1
 	_sun_receiver = spawn_prop(RECEIVER_SCENE, Vector3(11.0, 0.0, -6.0), -90.0) as SunReceiver
-	_sun_receiver.linked_targets = [crate_gate.get_path()]
+	_sun_receiver.required_target = _sun_receiver.get_path_to(crate_gate)
 	spawn_prop(CRATE_SCENE, Vector3(2.5, 0.0, -6.0))
 
 	# Final Heavy Plate C -> Exit Door
@@ -87,7 +87,7 @@ func _build_level() -> void:
 	var plate_c := Node3D.new()
 	plate_c.set_script(HEAVY_PLATE_SCRIPT)
 	plate_c.position = Vector3(0.0, 0.0, -7.8)
-	plate_c.linked_targets = [final_door.get_path()]
+	plate_c.linked_targets.append(final_door.get_path())
 	add_child(plate_c)
 
 	# Exit Room

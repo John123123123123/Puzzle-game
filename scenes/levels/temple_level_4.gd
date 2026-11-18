@@ -83,7 +83,7 @@ func _build_level() -> void:
 	door.required_triggers = 1
 
 	_sun_receiver = spawn_prop(RECEIVER_SCENE, Vector3(-4.0, 0.0, -4.5), 90.0) as SunReceiver
-	_sun_receiver.linked_targets = [door.get_path()]
+	_sun_receiver.required_target = _sun_receiver.get_path_to(door)
 
 	spawn_prop(EXIT_SCENE, Vector3(0.0, 0.0, -12.0))
 
