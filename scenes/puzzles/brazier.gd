@@ -25,22 +25,28 @@ func _process(delta: float) -> void:
 		fire_light.light_energy = 2.4 + sin(_flicker_time * 11.0) * 0.18 + sin(_flicker_time * 23.0) * 0.1
 
 func get_interact_prompt() -> String:
-	return "" if is_lit else "Light Brazier"
+	return ""
 
 func interact(player: Player) -> void:
-	# If player is carrying a torch or interacting, light the brazier
-	if not is_lit:
-		ignite()
+	# Braziers require a lit Torch (auto-lit on proximity, or if interacted while holding one)
+	if is_instance_valid(player) and player.carried_item is Torch:
+		var torch := player.carried_item as Torch
+		if not is_lit and torch.is_lit:
+			ignite()
+		elif is_lit and not torch.is_lit:
+			torch.relight()
 
 func on_whipped(player: Player) -> void:
 	# Whipping with a fiery whip or just interaction can trigger
 	pass
 
 func _on_body_entered(body: Node3D) -> void:
-	if is_lit:
-		return
 	if body is Player and body.carried_item is Torch:
-		ignite()
+		var torch := body.carried_item as Torch
+		if not is_lit and torch.is_lit:
+			ignite()
+		elif is_lit and not torch.is_lit:
+			torch.relight()
 
 func ignite() -> void:
 	if is_lit:

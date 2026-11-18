@@ -31,7 +31,22 @@ var _base_level_labels: Array[String] = []
 
 func _ready() -> void:
 	player_cards = [card_1, card_2, card_3, card_4]
+	btn_lvl1.text = "1: Catacombs"
+	btn_lvl2.text = "2: Mirrors"
+	btn_lvl3.text = "3: Hooks"
 	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3]
+	var extra_titles := ["4: Wind Vault", "5: Bridges", "6: Twin-Weight", "7: Golden Idol"]
+	var lvl_selector := get_node_or_null("VBoxContainer/LevelSelector")
+	if lvl_selector:
+		for i in range(extra_titles.size()):
+			var b := Button.new()
+			b.text = extra_titles[i]
+			b.custom_minimum_size = Vector2(130, 36)
+			b.add_theme_font_size_override("font_size", 14)
+			var lvl_idx := 4 + i
+			b.pressed.connect(func(): set_selected_level(lvl_idx))
+			lvl_selector.add_child(b)
+			level_buttons.append(b)
 	for btn in level_buttons:
 		_base_level_labels.append(btn.text)
 
@@ -113,7 +128,7 @@ func set_player_count(count: int) -> void:
 				status.modulate = Color(0.7, 0.7, 0.7)
 
 func set_selected_level(lvl: int) -> void:
-	selected_level = clampi(lvl, 1, 3)
+	selected_level = clampi(lvl, 1, level_buttons.size())
 	for i in range(level_buttons.size()):
 		var btn = level_buttons[i]
 		if (i + 1) == selected_level:

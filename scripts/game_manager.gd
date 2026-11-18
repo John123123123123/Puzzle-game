@@ -21,6 +21,10 @@ static func get_player_color(id: int) -> Color:
 var exploration_levels: Array[String] = [
 	"res://scenes/levels/temple_level_1.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
 	"res://scenes/levels/temple_level_2.tscn", # Level 2: Chamber of Mirrors (Light beam & mirror puzzle)
+	"res://scenes/levels/temple_level_4.tscn", # Level 3: The Chasm of Hooks (Whip Hooks)
+	"res://scenes/levels/temple_level_5.tscn", # Level 4: The Wind-Swept Vault (Wind Vents)
+	"res://scenes/levels/temple_level_6.tscn", # Level 5: The Shifting Causeway (Sliding Bridges)
+	"res://scenes/levels/temple_level_7.tscn", # Level 6: The Twin-Weight Sanctum (Heavy Pressure Plates)
 ]
 
 # The Golden Idol Temple & Giant Boulder Escape is ALWAYS the grand finale (always the last level)

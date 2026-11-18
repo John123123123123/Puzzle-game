@@ -17,6 +17,7 @@ var grabbed_block: PushableBlock = null
 var current_interactable: Node3D = null
 var is_invulnerable: bool = false
 var is_whipping: bool = false
+var is_swinging: bool = false
 var is_staggering: bool = false
 
 const WHIP_SCENE: PackedScene = preload("res://scenes/characters/whip_effect.tscn")
@@ -166,6 +167,9 @@ func _apply_player_identity() -> void:
 	if hat_crown: hat_crown.material_override = hat_mat
 
 func _physics_process(delta: float) -> void:
+	if is_swinging:
+		return
+
 	# Apply gravity
 	if not is_on_floor():
 		velocity.y -= 19.6 * delta
@@ -374,6 +378,31 @@ func use_whip() -> void:
 			target_obj.interact(self)
 
 	whip.lash(start_pt, target_pt, 0.22)
+
+func swing_across(hook_pos: Vector3, landing_pos: Vector3, duration: float = 0.42) -> void:
+	if is_swinging or current_health <= 0:
+		return
+	is_swinging = true
+	velocity = Vector3.ZERO
+	var start_pos := global_position
+	var dir_xz := Vector3(landing_pos.x - start_pos.x, 0.0, landing_pos.z - start_pos.z)
+	if dir_xz.length_squared() > 0.001:
+		mesh_root.rotation.y = atan2(dir_xz.x, dir_xz.z)
+
+	var tween := create_tween()
+	tween.tween_method(func(t: float):
+		if not is_instance_valid(self):
+			return
+		var p := start_pos.lerp(landing_pos, t)
+		# Gentle pendulum arc above the chasm
+		var arc := sin(t * PI) * 1.15
+		p.y = lerpf(start_pos.y, landing_pos.y, t) + arc
+		global_position = p
+	, 0.0, 1.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tween.finished
+	if is_instance_valid(self):
+		velocity = Vector3.ZERO
+		is_swinging = false
 
 func interact() -> void:
 	# If carrying something, drop or place it

@@ -26,6 +26,17 @@ func _ready() -> void:
 	if is_instance_valid(SettingsManager):
 		SettingsManager.apply_environment()
 
+func _physics_process(_delta: float) -> void:
+	if is_game_over or level_complete:
+		return
+	for id in players.keys():
+		var p = players[id]
+		if is_instance_valid(p) and p.current_health > 0 and not p.is_swinging and p.global_position.y < -4.0:
+			p.take_damage(1)
+			if p.current_health > 0:
+				p.global_position = latest_checkpoint_pos + Vector3(randf_range(-0.4, 0.4), 0.1, randf_range(-0.4, 0.4))
+				p.velocity = Vector3.ZERO
+
 func _on_door_opened(door: Node3D) -> void:
 	if is_instance_valid(door):
 		latest_checkpoint_pos = door.global_position + Vector3(0.0, 0.1, 0.0)
@@ -125,3 +136,82 @@ func _check_game_over() -> void:
 		return
 	if is_instance_valid(hud):
 		hud.show_game_over()
+
+# ---------------------------------------------------------------------------
+# Shared Procedural Geometry & Prop Builders for Temple Levels
+# ---------------------------------------------------------------------------
+
+var _shared_floor_mat: ShaderMaterial = null
+var _shared_wall_mat: ShaderMaterial = null
+
+func _get_floor_mat() -> ShaderMaterial:
+	if _shared_floor_mat == null:
+		_shared_floor_mat = ShaderMaterial.new()
+		_shared_floor_mat.shader = preload("res://shaders/ancient_stone_floor.gdshader")
+	return _shared_floor_mat
+
+func _get_wall_mat() -> ShaderMaterial:
+	if _shared_wall_mat == null:
+		_shared_wall_mat = ShaderMaterial.new()
+		_shared_wall_mat.shader = preload("res://shaders/ancient_temple_wall.gdshader")
+	return _shared_wall_mat
+
+func build_floor(pos: Vector3, size: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.position = pos
+
+	var col := CollisionShape3D.new()
+	var bcol := BoxShape3D.new()
+	bcol.size = size
+	col.shape = bcol
+	body.add_child(col)
+
+	var mesh := MeshInstance3D.new()
+	var bmesh := BoxMesh.new()
+	bmesh.size = size
+	bmesh.material = _get_floor_mat()
+	mesh.mesh = bmesh
+	body.add_child(mesh)
+
+	add_child(body)
+	return body
+
+func build_wall(pos: Vector3, size: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 6
+	body.position = pos
+
+	var col := CollisionShape3D.new()
+	var bcol := BoxShape3D.new()
+	bcol.size = size
+	col.shape = bcol
+	body.add_child(col)
+
+	var mesh := MeshInstance3D.new()
+	var bmesh := BoxMesh.new()
+	bmesh.size = size
+	bmesh.material = _get_wall_mat()
+	mesh.mesh = bmesh
+	body.add_child(mesh)
+
+	add_child(body)
+	return body
+
+func build_light(pos: Vector3, color: Color = Color(1.0, 0.78, 0.45), energy: float = 1.6, omni_range: float = 12.0) -> OmniLight3D:
+	var l := OmniLight3D.new()
+	l.position = pos
+	l.light_color = color
+	l.light_energy = energy
+	l.omni_range = omni_range
+	add_child(l)
+	return l
+
+func spawn_prop(scene_res: PackedScene, pos: Vector3, rot_y_deg: float = 0.0) -> Node3D:
+	var inst := scene_res.instantiate() as Node3D
+	add_child(inst)
+	inst.global_position = pos
+	inst.rotation.y = deg_to_rad(rot_y_deg)
+	return inst
