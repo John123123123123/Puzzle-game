@@ -30,7 +30,7 @@ func _on_body_entered(body: Node3D) -> void:
 	collected.emit(self)
 
 	if is_instance_valid(AudioManager):
-		AudioManager.play_sfx_2d(&"scarab_pickup", 0.98, 1.04, -2.0)
+		AudioManager.play_sfx_2d(&"scarab_pickup", 0.98, 1.04, -8.0)
 
 	var hud := get_tree().get_first_node_in_group("hud")
 	if hud and hud.has_method("register_scarab_collected"):

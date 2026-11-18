@@ -11,6 +11,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1920, 1080),
 	Vector2i(2560, 1440)
 ]
+const DEFAULT_RESOLUTION_INDEX: int = 2
 
 const REBINDABLE_ACTIONS: Array[Dictionary] = [
 	{"action": "p1_up", "label": "P1 Move Up"},
@@ -44,7 +45,7 @@ var glow_enabled: bool = true
 
 # Display
 var window_mode: int = 0 # 0=Windowed, 1=Borderless, 2=Fullscreen
-var resolution_index: int = 0
+var resolution_index: int = DEFAULT_RESOLUTION_INDEX
 var vsync: int = 1 # 0=Off, 1=On, 2=Adaptive
 
 # Game
@@ -94,7 +95,7 @@ func load_settings() -> void:
 	glow_enabled = cfg.get_value("graphics", "glow_enabled", true)
 
 	window_mode = cfg.get_value("display", "window_mode", 0)
-	resolution_index = clampi(cfg.get_value("display", "resolution_index", 0), 0, RESOLUTIONS.size() - 1)
+	resolution_index = clampi(cfg.get_value("display", "resolution_index", DEFAULT_RESOLUTION_INDEX), 0, RESOLUTIONS.size() - 1)
 	vsync = cfg.get_value("display", "vsync", 1)
 
 	camera_sensitivity = cfg.get_value("game", "camera_sensitivity", 1.0)
@@ -287,7 +288,7 @@ func reset_to_defaults() -> void:
 	ssil_enabled = true
 	glow_enabled = true
 	window_mode = 0
-	resolution_index = 0
+	resolution_index = DEFAULT_RESOLUTION_INDEX
 	vsync = 1
 	camera_sensitivity = 1.0
 	camera_shake = true

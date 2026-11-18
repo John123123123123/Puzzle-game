@@ -131,7 +131,7 @@ func start_ambient_temple() -> void:
 		return
 	if stream is AudioStreamWAV:
 		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		stream.loop_end = stream.data.size()
+		stream.loop_end = int(stream.data.size() / 2) if stream.format == AudioStreamWAV.FORMAT_16_BITS else stream.data.size()
 
 	if not is_instance_valid(_ambient_player):
 		_ambient_player = AudioStreamPlayer.new()
@@ -236,7 +236,7 @@ func _generate_procedural_stream(sound_id: StringName) -> AudioStreamWAV:
 				return low + mid + grit
 			)
 			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			wav.loop_end = wav.data.size()
+			wav.loop_end = int(wav.data.size() / 2)
 			return wav
 		&"brazier_ignite":
 			return _build_wav(0.32, func(t: float) -> float:
@@ -245,36 +245,43 @@ func _generate_procedural_stream(sound_id: StringName) -> AudioStreamWAV:
 				return whoosh + flare
 			)
 		&"scarab_pickup":
-			return _build_wav(0.35, func(t: float) -> float:
-				var f1 = 660.0 if t < 0.09 else (880.0 if t < 0.18 else 1320.0)
-				var tone = sin(t * f1 * TAU) * exp(-t * 5.5) * 0.55
-				var shimmer = sin(t * f1 * 2.0 * TAU) * exp(-t * 8.0) * 0.25
-				return tone + shimmer
+			return _build_wav(0.36, func(t: float) -> float:
+				var n1 := sin(t * 880.0 * TAU) * exp(-t * 14.0) * minf(1.0, t * 80.0)
+				var t2 := maxf(0.0, t - 0.08)
+				var n2 := (sin(t2 * 1108.73 * TAU) * exp(-t2 * 12.0) * minf(1.0, t2 * 80.0)) if t >= 0.08 else 0.0
+				var t3 := maxf(0.0, t - 0.16)
+				var n3 := (sin(t3 * 1318.51 * TAU) * exp(-t3 * 10.0) * minf(1.0, t3 * 80.0)) if t >= 0.16 else 0.0
+				return (n1 * 0.35 + n2 * 0.35 + n3 * 0.45) * 0.45
 			)
 		&"temple_ambient":
-			var wav := _build_wav(3.0, func(t: float) -> float:
-				var wind = sin(t * 0.66 * TAU) * 0.12 * (randf() * 2.0 - 1.0)
-				var drone = sin(t * 55.0 * TAU) * 0.08 + sin(t * 82.5 * TAU) * 0.05
-				var drip_t = fmod(t + 0.4, 3.0)
-				var drip = sin(drip_t * (1100.0 + drip_t * 900.0) * TAU) * exp(-drip_t * 38.0) * 0.22
-				return wind + drone + drip
+			var wav := _build_wav(4.0, func(t: float) -> float:
+				# Seamless low-frequency temple room tone (integer cycles in 4.0s)
+				var swell := 0.75 + 0.25 * sin(t * 0.25 * TAU)
+				var drone := (sin(t * 55.0 * TAU) * 0.06 + sin(t * 82.5 * TAU) * 0.035 + sin(t * 110.0 * TAU) * 0.015) * swell
+				# Soft distant water droplet mid-loop (no seam wrap)
+				var drip := 0.0
+				if t >= 1.6 and t < 1.9:
+					var dt := t - 1.6
+					drip = sin(dt * (900.0 + dt * 600.0) * TAU) * exp(-dt * 28.0) * minf(1.0, dt * 120.0) * 0.08
+				return drone + drip
 			)
 			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			wav.loop_end = wav.data.size()
+			wav.loop_end = int(wav.data.size() / 2)
 			return wav
 	return null
 
 func _build_wav(duration: float, sample_fn: Callable, sample_rate: int = 22050) -> AudioStreamWAV:
 	var num_samples := int(sample_rate * duration)
 	var data := PackedByteArray()
-	data.resize(num_samples)
+	data.resize(num_samples * 2)
 	for i in range(num_samples):
 		var t := float(i) / float(sample_rate)
 		var sample := clampf(float(sample_fn.call(t)), -1.0, 1.0)
-		data[i] = int(clampi(int((sample * 0.7 + 0.5) * 255.0), 0, 255))
+		var pcm := int(clampi(int(round(sample * 32767.0)), -32767, 32767))
+		data.encode_s16(i * 2, pcm)
 
 	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = sample_rate
 	stream.data = data
 	return stream

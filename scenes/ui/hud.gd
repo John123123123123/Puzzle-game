@@ -185,8 +185,10 @@ func show_level_complete(level_num: int) -> void:
 
 	# --- Center panel ---
 	var panel = PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	panel.custom_minimum_size = Vector2(480, 300)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -290,8 +292,10 @@ func show_game_over() -> void:
 
 	# Panel container
 	var panel = PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	panel.custom_minimum_size = Vector2(480, 320)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -371,9 +375,13 @@ func _open_pause_menu() -> void:
 	_pause_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_pause_dim)
 
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+
 	var panel := PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	panel.custom_minimum_size = Vector2(440, 320)
+	center.add_child(panel)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 24)
@@ -455,9 +463,8 @@ func _open_pause_menu() -> void:
 	vbox.add_child(btn_menu)
 	margin.add_child(vbox)
 	panel.add_child(margin)
-	add_child(panel)
 
-	_pause_panel = panel
+	_pause_panel = center
 	get_tree().paused = true
 	btn_resume.grab_focus()
 

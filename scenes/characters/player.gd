@@ -278,7 +278,7 @@ func _update_animation(delta: float) -> void:
 
 		# 6. Arms swing (unless carrying or whipping)
 		if not is_whipping:
-			if carried_item != null:
+			if carried_item != null or is_instance_valid(grabbed_block):
 				# Carrying an object with both hands forward
 				arm_l.rotation.x = lerp_angle(arm_l.rotation.x, deg_to_rad(-65.0), 12.0 * delta)
 				arm_r.rotation.x = lerp_angle(arm_r.rotation.x, deg_to_rad(-65.0), 12.0 * delta)
@@ -314,7 +314,7 @@ func _update_animation(delta: float) -> void:
 		head.rotation.z = lerp_angle(head.rotation.z, 0.0, 10.0 * delta)
 
 		if not is_whipping:
-			if carried_item != null:
+			if carried_item != null or is_instance_valid(grabbed_block):
 				arm_l.rotation.x = lerp_angle(arm_l.rotation.x, deg_to_rad(-65.0), 12.0 * delta)
 				arm_r.rotation.x = lerp_angle(arm_r.rotation.x, deg_to_rad(-65.0), 12.0 * delta)
 				arm_l.rotation.y = lerp_angle(arm_l.rotation.y, deg_to_rad(15.0), 12.0 * delta)
@@ -408,9 +408,42 @@ func drop_item() -> void:
 	var item = carried_item
 	carried_item = null
 	item.reparent(get_parent())
-	item.global_position = global_position + mesh_root.global_basis.z * 1.2
+	item.global_position = _find_safe_drop_position()
 	if item.has_method("on_dropped"):
 		item.on_dropped(self)
+
+func _find_safe_drop_position() -> Vector3:
+	var forward := Vector3(mesh_root.global_basis.z.x, 0.0, mesh_root.global_basis.z.z)
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.BACK
+	else:
+		forward = forward.normalized()
+
+	var drop_distance := 1.2
+	var space_state := get_world_3d().direct_space_state
+	if space_state == null:
+		return global_position + forward * drop_distance
+
+	var shape := SphereShape3D.new()
+	shape.radius = 0.25
+
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0.0, 0.5, 0.0))
+	query.motion = forward * drop_distance
+	query.collision_mask = 1 # World / walls / pillars / solid obstacles
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.exclude = [get_rid()]
+
+	var result := space_state.cast_motion(query)
+	if result.is_empty():
+		return global_position
+
+	var safe_dist := result[0] * drop_distance
+	if safe_dist < 0.2:
+		return global_position
+	return global_position + forward * safe_dist
 
 func take_damage(amount: int = 1) -> void:
 	if is_invulnerable or current_health <= 0:
