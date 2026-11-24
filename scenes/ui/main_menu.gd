@@ -22,16 +22,18 @@ extends Control
 @onready var btn_lvl1: Button = $VBoxContainer/LevelSelector/BtnLvl1
 @onready var btn_lvl2: Button = $VBoxContainer/LevelSelector/BtnLvl2
 @onready var btn_lvl3: Button = $VBoxContainer/LevelSelector/BtnLvl3
+@onready var btn_lvl4: Button = $VBoxContainer/LevelSelector/BtnLvl4
 
 var selected_count: int = 1
 var selected_level: int = 1
 var player_cards: Array[PanelContainer] = []
 var level_buttons: Array[Button] = []
 var _base_level_labels: Array[String] = []
+var _settings_open: bool = false
 
 func _ready() -> void:
 	player_cards = [card_1, card_2, card_3, card_4]
-	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3]
+	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3, btn_lvl4]
 	for btn in level_buttons:
 		_base_level_labels.append(btn.text)
 
@@ -47,6 +49,7 @@ func _ready() -> void:
 	btn_lvl1.pressed.connect(func(): set_selected_level(1))
 	btn_lvl2.pressed.connect(func(): set_selected_level(2))
 	btn_lvl3.pressed.connect(func(): set_selected_level(3))
+	btn_lvl4.pressed.connect(func(): set_selected_level(4))
 
 	set_player_count(1)
 	set_selected_level(1)
@@ -85,9 +88,13 @@ func _populate_level_progress() -> void:
 			btn.text = base_text
 
 func _open_settings(return_focus: Button) -> void:
+	if _settings_open:
+		return
+	_settings_open = true
 	var settings := SETTINGS_MENU_SCRIPT.new()
 	add_child(settings)
 	settings.closed.connect(func():
+		_settings_open = false
 		if is_instance_valid(return_focus):
 			return_focus.grab_focus()
 	)
@@ -113,7 +120,7 @@ func set_player_count(count: int) -> void:
 				status.modulate = Color(0.7, 0.7, 0.7)
 
 func set_selected_level(lvl: int) -> void:
-	selected_level = clampi(lvl, 1, 3)
+	selected_level = clampi(lvl, 1, level_buttons.size())
 	for i in range(level_buttons.size()):
 		var btn = level_buttons[i]
 		if (i + 1) == selected_level:
@@ -132,6 +139,8 @@ func _on_start_pressed() -> void:
 		GameManager.start_game(selected_count, selected_level)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _settings_open:
+		return
 	if event.is_action_pressed("p2_interact") and selected_count < 2:
 		set_player_count(2)
 	elif event.is_action_pressed("p3_interact") and selected_count < 3:
@@ -139,5 +148,5 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("p4_interact") and selected_count < 4:
 		set_player_count(4)
 
-	if event.is_action_pressed("ui_accept") and not start_button.has_focus():
+	if event.is_action_pressed("ui_accept") and get_viewport().gui_get_focus_owner() == null:
 		_on_start_pressed()

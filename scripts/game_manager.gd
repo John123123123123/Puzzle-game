@@ -21,6 +21,7 @@ static func get_player_color(id: int) -> Color:
 var exploration_levels: Array[String] = [
 	"res://scenes/levels/temple_level_1.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
 	"res://scenes/levels/temple_level_2.tscn", # Level 2: Chamber of Mirrors (Light beam & mirror puzzle)
+	"res://scenes/levels/temple_level_vault.tscn", # Level 3: Vault of Twin Moons (Solar / Lunar phase-shifting)
 ]
 
 # The Golden Idol Temple & Giant Boulder Escape is ALWAYS the grand finale (always the last level)
@@ -32,7 +33,23 @@ const PROGRESS_PATH: String = "user://progress.cfg"
 var level_progress: Dictionary = {} # level_num (int) -> { "best_time": float, "best_scarabs": int, "total_scarabs": int }
 
 func _ready() -> void:
+	_register_dash_actions()
 	load_progress()
+
+func _register_dash_actions() -> void:
+	var key_map := {1: [KEY_SHIFT, KEY_F], 2: [KEY_SLASH], 3: [], 4: []}
+	for pid in range(1, 5):
+		var action := "p%d_dash" % pid
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+			for kc in key_map[pid]:
+				var ke := InputEventKey.new()
+				ke.physical_keycode = kc
+				InputMap.action_add_event(action, ke)
+			var je := InputEventJoypadButton.new()
+			je.device = pid - 1
+			je.button_index = JOY_BUTTON_B
+			InputMap.action_add_event(action, je)
 
 func load_progress() -> void:
 	level_progress.clear()

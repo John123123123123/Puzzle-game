@@ -29,11 +29,12 @@ You can move the ancient sandstone blocks in two smooth ways:
 
 ---
 
-## 🗺️ The Temple Campaign (3 Different Levels)
+## 🗺️ The Temple Campaign (4 Distinct Levels)
 
-* **💀 Level 1: The Dark Catacomb:** Braziers, spike traps, dual wall levers, and the hunt for the Obsidian Scarab.
-* **🪞 Level 2: Pharaoh's Hall of Mirrors:** Mirror light reflections onto sun crystals, 4-player pressure plates, and the Eye of Ra.
-* **🏛️ Level 3: Ruins of the Sun Temple:** Pressure plates, sandstone blocks, poison darts, and the wild escape from the rolling boulder!
+* **💀 Level 1: The Catacombs:** Braziers, alternating silent spike traps, poison dart corridors, and dual wall levers.
+* **🪞 Level 2: Chamber of Mirrors:** Skylight sunbeam reflections through rotating mirrors onto solar crystals and twin sun seals.
+* **🌗 Level 3: Vault of Twin Moons:** Celestial Sun/Moon phase-shifting obelisks, astral bridges over the chasm, phase forcefield vaults, and sweeping flame spinners.
+* **🏛️ Level 4: The Golden Idol (Finale):** Pressure plates, poison darts, smashable urns, the Golden Idol of Ra, and the collapsing boulder escape!
 
 ---
 
@@ -49,8 +50,8 @@ You can move the ancient sandstone blocks in two smooth ways:
 
 | Action | Keyboard | Gamepad |
 | :--- | :--- | :--- |
-| **Player 1** | **W / A / S / D** (Move / Push block)<br>**E** (Grab block / Carry / Interact)<br>**Space** (Whip) | **Left Stick** (Move / Push)<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip) |
-| **Player 2** | **Arrow Keys** (Move)<br>**Enter** (Grab / Interact)<br>**Right Shift** (Whip) | **Left Stick (Controller 2)**<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip) |
+| **Player 1** | **W / A / S / D** (Move / Push block)<br>**E** (Grab block / Carry / Interact)<br>**Space** (Whip)<br>**Shift / F** (Dodge Roll) | **Left Stick** (Move / Push)<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip)<br>**B / Circle** (Dodge Roll) |
+| **Player 2** | **Arrow Keys** (Move)<br>**Enter** (Grab / Interact)<br>**Right Shift** (Whip)<br>**/** (Dodge Roll) | **Left Stick (Controller 2)**<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip)<br>**B / Circle** (Dodge Roll) |
 | **Players 3 & 4** | - | **Controllers 3 & 4** (Stick + A/X) |
 | **Rotate Camera** | **Q / R** (or hold **Right Mouse Button** and drag) | **Right Stick** / **LB & RB** |
 | **Menu** | **ESC** | **Start / Menu** |

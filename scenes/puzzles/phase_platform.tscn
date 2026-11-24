@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/phase_platform.gd" id="1_plat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_default"]
+size = Vector3(2.4, 0.28, 2.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_default"]
+size = Vector3(2.4, 0.28, 2.4)
+
+[node name="PhasePlatform" type="StaticBody3D" groups=["phase_platform"]]
+collision_layer = 1
+collision_mask = 7
+script = ExtResource("1_plat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_default")
+
+[node name="SolidMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_default")
+
+[node name="TrimMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_default")
+
+[node name="GlowLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+light_color = Color(1, 0.84, 0.25, 1)
+light_energy = 1.2
+omni_range = 3.8

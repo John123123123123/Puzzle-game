@@ -61,7 +61,10 @@ func _physics_process(delta: float) -> void:
 		var col = get_slide_collision(i)
 		var collider = col.get_collider()
 
-		# Smash through any pushable blocks in the corridor!
+		# Smash through any pushable blocks or ancient urns in the corridor!
+		if collider is AncientUrn and collider.has_method("smash"):
+			collider.smash(null)
+			continue
 		if collider is PushableBlock or (collider and collider.is_in_group("pushable")):
 			collider.queue_free()
 			continue

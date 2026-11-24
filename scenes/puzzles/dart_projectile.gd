@@ -1,7 +1,7 @@
 extends Area3D
 class_name DartProjectile
 
-@export var speed: float = 14.0
+@export var speed: float = 9.5
 @export var max_distance: float = 12.0
 var traveled: float = 0.0
 
@@ -9,7 +9,7 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 
 func _physics_process(delta: float) -> void:
-	var move_vec = -global_basis.z * speed * delta
+	var move_vec = global_basis.z * speed * delta
 	global_position += move_vec
 	traveled += move_vec.length()
 

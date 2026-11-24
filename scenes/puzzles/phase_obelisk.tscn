@@ -1,0 +1,93 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/phase_obelisk.gd" id="1_obelisk"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_body"]
+height = 1.9
+radius = 0.45
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone"]
+albedo_color = Color(0.24, 0.22, 0.28, 1)
+metallic = 0.2
+roughness = 0.82
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pillar"]
+material = SubResource("StandardMaterial3D_stone")
+top_radius = 0.28
+bottom_radius = 0.44
+height = 1.35
+radial_segments = 4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold_collar"]
+albedo_color = Color(0.85, 0.68, 0.25, 1)
+metallic = 0.88
+roughness = 0.26
+
+[sub_resource type="BoxMesh" id="BoxMesh_plinth"]
+material = SubResource("StandardMaterial3D_gold_collar")
+size = Vector3(0.86, 0.14, 0.86)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crystal"]
+albedo_color = Color(1, 0.82, 0.22, 1)
+metallic = 0.35
+roughness = 0.12
+emission_enabled = true
+emission = Color(1, 0.82, 0.22, 1)
+emission_energy_multiplier = 2.6
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_crystal"]
+material = SubResource("StandardMaterial3D_crystal")
+top_radius = 0.01
+bottom_radius = 0.26
+height = 0.48
+radial_segments = 4
+
+[sub_resource type="TorusMesh" id="TorusMesh_ring"]
+material = SubResource("StandardMaterial3D_crystal")
+inner_radius = 0.34
+outer_radius = 0.39
+rings = 16
+ring_segments = 8
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 1.65
+
+[node name="PhaseObelisk" type="StaticBody3D" groups=["interactable", "phase_obelisk", "whip_target"]]
+collision_layer = 1
+collision_mask = 6
+script = ExtResource("1_obelisk")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("CylinderShape3D_body")
+
+[node name="Plinth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0)
+mesh = SubResource("BoxMesh_plinth")
+
+[node name="ObeliskShaft" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0, 0.78, 0)
+mesh = SubResource("CylinderMesh_pillar")
+
+[node name="CrystalPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0)
+
+[node name="CrystalMesh" type="MeshInstance3D" parent="CrystalPivot"]
+mesh = SubResource("CylinderMesh_crystal")
+
+[node name="OrbitRing" type="MeshInstance3D" parent="CrystalPivot"]
+mesh = SubResource("TorusMesh_ring")
+
+[node name="BeaconLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+light_color = Color(1, 0.82, 0.22, 1)
+light_energy = 2.2
+omni_range = 6.5
+
+[node name="InteractionArea" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+shape = SubResource("SphereShape3D_interact")

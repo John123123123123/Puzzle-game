@@ -10,6 +10,7 @@ const CARRY_FOLLOW_SPEED: float = 14.0
 
 var push_velocity: Vector3 = Vector3.ZERO
 var grabbed_by: Player = null
+var spawn_position: Vector3 = Vector3.ZERO
 var _dust_timer: float = 0.0
 
 @onready var mesh_instance: MeshInstance3D = $MeshInstance3D
@@ -17,6 +18,7 @@ var _dust_timer: float = 0.0
 func _ready() -> void:
 	add_to_group("pushable")
 	add_to_group("interactable")
+	spawn_position = global_position
 
 func get_interact_prompt() -> String:
 	return "Release Block" if is_instance_valid(grabbed_by) else "Grab Block"
@@ -73,6 +75,14 @@ func _physics_process(delta: float) -> void:
 		push_velocity = push_velocity.move_toward(Vector3.ZERO, friction * delta)
 
 	move_and_slide()
+
+	if global_position.y < -4.5:
+		release()
+		velocity = Vector3.ZERO
+		push_velocity = Vector3.ZERO
+		global_position = spawn_position + Vector3(0.0, 0.25, 0.0)
+		DUST_PUFF.spawn(get_parent(), global_position, 4, 1.0)
+		return
 
 	if Vector2(velocity.x, velocity.z).length() > 0.6 and is_on_floor():
 		_dust_timer += delta

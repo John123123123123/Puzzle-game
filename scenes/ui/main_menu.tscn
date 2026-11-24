@@ -324,22 +324,28 @@ theme_override_font_sizes/font_size = 15
 text = "Starting Level:"
 
 [node name="BtnLvl1" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(150, 36)
+custom_minimum_size = Vector2(145, 36)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "1: The Catacombs"
 
 [node name="BtnLvl2" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(150, 36)
+custom_minimum_size = Vector2(155, 36)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "2: Chamber of Mirrors"
 
 [node name="BtnLvl3" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(150, 36)
+custom_minimum_size = Vector2(160, 36)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "3: The Golden Idol"
+theme_override_font_sizes/font_size = 13
+text = "3: Vault of Twin Moons"
+
+[node name="BtnLvl4" type="Button" parent="VBoxContainer/LevelSelector"]
+custom_minimum_size = Vector2(145, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "4: The Golden Idol"
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
 custom_minimum_size = Vector2(300, 52)

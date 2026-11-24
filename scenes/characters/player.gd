@@ -18,8 +18,13 @@ var current_interactable: Node3D = null
 var is_invulnerable: bool = false
 var is_whipping: bool = false
 var is_staggering: bool = false
+var is_dashing: bool = false
+var _dash_timer: float = 0.0
+var _dash_cooldown: float = 0.0
+var _dash_dir: Vector3 = Vector3.ZERO
 
 const WHIP_SCENE: PackedScene = preload("res://scenes/characters/whip_effect.tscn")
+const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
 
 var hurt_light: OmniLight3D = null
 var prompt_label: Label3D = null
@@ -166,6 +171,9 @@ func _apply_player_identity() -> void:
 	if hat_crown: hat_crown.material_override = hat_mat
 
 func _physics_process(delta: float) -> void:
+	if _dash_cooldown > 0.0:
+		_dash_cooldown -= delta
+
 	# Apply gravity
 	if not is_on_floor():
 		velocity.y -= 19.6 * delta
@@ -178,7 +186,27 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	_handle_movement(delta)
+	# Chasm fall safety: damage 1 HP and return to latest checkpoint
+	if global_position.y < -5.5:
+		take_damage(1)
+		if current_health > 0:
+			velocity = Vector3.ZERO
+			var respawn_pos := Vector3(0.0, 0.4, 4.0)
+			var parent_lvl := get_parent()
+			if is_instance_valid(parent_lvl) and "latest_checkpoint_pos" in parent_lvl:
+				respawn_pos = parent_lvl.latest_checkpoint_pos + Vector3(0.0, 0.3, 0.0)
+			global_position = respawn_pos
+		return
+
+	if is_dashing:
+		_dash_timer -= delta
+		velocity.x = _dash_dir.x * 11.5
+		velocity.z = _dash_dir.z * 11.5
+		if _dash_timer <= 0.0:
+			is_dashing = false
+	else:
+		_handle_movement(delta)
+
 	_handle_input()
 	move_and_slide()
 	_handle_push_collisions()
@@ -334,6 +362,28 @@ func _handle_input() -> void:
 		interact()
 	if InputMap.has_action(prefix + "action") and Input.is_action_just_pressed(prefix + "action"):
 		use_whip()
+	if InputMap.has_action(prefix + "dash") and Input.is_action_just_pressed(prefix + "dash"):
+		use_dash()
+
+func use_dash() -> void:
+	if is_dashing or is_staggering or _dash_cooldown > 0.0 or current_health <= 0:
+		return
+	var forward_dir := Vector3(mesh_root.global_basis.z.x, 0.0, mesh_root.global_basis.z.z)
+	if forward_dir.length_squared() < 0.001:
+		forward_dir = Vector3.FORWARD
+	_dash_dir = forward_dir.normalized()
+	is_dashing = true
+	_dash_timer = 0.18
+	_dash_cooldown = 0.65
+
+	if is_instance_valid(get_parent()):
+		DUST_PUFF.spawn(get_parent(), global_position, 4, 0.9)
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"footstep", global_position, 1.15, 1.30, -4.0, 18.0, 4.0)
+
+	var roll_tw := create_tween()
+	roll_tw.tween_property(torso, "rotation:x", deg_to_rad(32.0), 0.08)
+	roll_tw.tween_property(torso, "rotation:x", 0.0, 0.12)
 
 func use_whip() -> void:
 	if is_whipping:
@@ -375,9 +425,22 @@ func use_whip() -> void:
 
 	whip.lash(start_pt, target_pt, 0.22)
 
+func _can_interact_while_carrying(target: Node3D) -> bool:
+	if not is_instance_valid(target) or target == carried_item:
+		return false
+	if target.is_in_group("carryable") or target is PushableBlock or target.is_in_group("pushable"):
+		return false
+	if target is Brazier and target.is_lit:
+		return false
+	return target.has_method("interact")
+
 func interact() -> void:
-	# If carrying something, drop or place it
+	# If carrying something (e.g., Torch), prioritize lighting an unlit Brazier or operating a switch
 	if carried_item != null:
+		if _can_interact_while_carrying(current_interactable):
+			current_interactable.interact(self)
+			interacted.emit()
+			return
 		drop_item()
 		return
 
@@ -388,10 +451,10 @@ func interact() -> void:
 
 	# Otherwise, interact with nearby object
 	if is_instance_valid(current_interactable):
-		if current_interactable.has_method("interact"):
-			current_interactable.interact(self)
-		elif current_interactable.is_in_group("carryable"):
+		if current_interactable.is_in_group("carryable"):
 			pick_up_item(current_interactable)
+		elif current_interactable.has_method("interact"):
+			current_interactable.interact(self)
 		interacted.emit()
 
 func pick_up_item(item: Node3D) -> void:
@@ -443,7 +506,34 @@ func _find_safe_drop_position() -> Vector3:
 	var safe_dist := result[0] * drop_distance
 	if safe_dist < 0.2:
 		return global_position
-	return global_position + forward * safe_dist
+	var candidate := global_position + forward * safe_dist
+
+	# Verify solid floor beneath drop position so items aren't dropped into chasm pits
+	var floor_ray := PhysicsRayQueryParameters3D.create(
+		candidate + Vector3(0.0, 0.6, 0.0),
+		candidate + Vector3(0.0, -1.8, 0.0),
+		1
+	)
+	floor_ray.exclude = [get_rid()]
+	if space_state.intersect_ray(floor_ray).is_empty():
+		return global_position
+
+	return candidate
+
+func heal(amount: int = 1) -> void:
+	if current_health <= 0 or current_health >= max_health:
+		return
+	current_health = mini(max_health, current_health + amount)
+	health_changed.emit(current_health)
+	if is_instance_valid(hurt_light):
+		hurt_light.light_color = Color(0.25, 1.0, 0.45)
+		hurt_light.light_energy = 2.8
+		var tw := create_tween()
+		tw.tween_property(hurt_light, "light_energy", 0.0, 0.4)
+		tw.chain().tween_callback(func():
+			if is_instance_valid(hurt_light):
+				hurt_light.light_color = Color(1.0, 0.15, 0.15)
+		)
 
 func take_damage(amount: int = 1) -> void:
 	if is_invulnerable or current_health <= 0:
@@ -501,7 +591,7 @@ func take_damage(amount: int = 1) -> void:
 	stagger_tween.tween_property(mesh_root, "scale", Vector3.ONE, 0.22)
 
 	# Brief knockback impulse away from facing
-	velocity += -transform.basis.z * 3.5 + Vector3.UP * 1.5
+	velocity += -mesh_root.global_transform.basis.z * 3.5 + Vector3.UP * 1.5
 
 	# End stagger after 0.32s
 	get_tree().create_timer(0.32).timeout.connect(func():
@@ -569,12 +659,16 @@ func _update_interact_prompt() -> void:
 	if not is_instance_valid(prompt_label):
 		return
 
-	if current_health <= 0 or carried_item != null or (is_instance_valid(SettingsManager) and not SettingsManager.show_interact_prompts):
+	if current_health <= 0 or (is_instance_valid(SettingsManager) and not SettingsManager.show_interact_prompts):
+		prompt_label.visible = false
+		return
+
+	if carried_item != null and not _can_interact_while_carrying(current_interactable):
 		prompt_label.visible = false
 		return
 
 	var target: Node3D = null
-	if is_instance_valid(grabbed_block):
+	if carried_item == null and is_instance_valid(grabbed_block):
 		target = grabbed_block
 	elif is_instance_valid(current_interactable):
 		target = current_interactable
@@ -584,7 +678,9 @@ func _update_interact_prompt() -> void:
 		return
 
 	var action_text := ""
-	if target.has_method("get_interact_prompt"):
+	if target.has_method("get_interact_prompt_for"):
+		action_text = target.get_interact_prompt_for(self)
+	elif target.has_method("get_interact_prompt"):
 		action_text = target.get_interact_prompt()
 	elif target.is_in_group("carryable"):
 		action_text = "Pick Up"

@@ -25,11 +25,17 @@ func _process(delta: float) -> void:
 		fire_light.light_energy = 2.4 + sin(_flicker_time * 11.0) * 0.18 + sin(_flicker_time * 23.0) * 0.1
 
 func get_interact_prompt() -> String:
-	return "" if is_lit else "Light Brazier"
+	return "" if is_lit else "Requires Torch"
+
+func get_interact_prompt_for(player: Player) -> String:
+	if is_lit:
+		return ""
+	if is_instance_valid(player) and player.carried_item is Torch:
+		return "Light Brazier"
+	return "Requires Torch"
 
 func interact(player: Player) -> void:
-	# If player is carrying a torch or interacting, light the brazier
-	if not is_lit:
+	if not is_lit and is_instance_valid(player) and player.carried_item is Torch:
 		ignite()
 
 func on_whipped(player: Player) -> void:

@@ -11,8 +11,6 @@
 [ext_resource type="PackedScene" path="res://scenes/puzzles/torch.tscn" id="9_torch"]
 [ext_resource type="PackedScene" path="res://scenes/puzzles/giant_boulder.tscn" id="10_boulder"]
 [ext_resource type="PackedScene" path="res://scenes/puzzles/wall_lever.tscn" id="11_lever"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/mirror_pillar.tscn" id="13_mirror"]
-[ext_resource type="PackedScene" path="res://scenes/puzzles/sun_receiver.tscn" id="14_sun"]
 [ext_resource type="Shader" uid="uid://dyhtj0sxkdvba" path="res://shaders/ancient_stone_floor.gdshader" id="15_floor_shader"]
 [ext_resource type="Shader" uid="uid://b4qlod3tugpe7" path="res://shaders/ancient_temple_wall.gdshader" id="16_wall_shader"]
 [ext_resource type="PackedScene" path="res://scenes/props/temple_pillar.tscn" id="17_pillar"]
@@ -380,21 +378,19 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.1, -4)
 [node name="Torch2" parent="Room1" unique_id=1056618579 instance=ExtResource("9_torch")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0.1, -4)
 
-[node name="MirrorPillar1" parent="Room1" unique_id=2072055371 instance=ExtResource("13_mirror")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.1, 1)
-
 [node name="Room2" type="Node3D" parent="." unique_id=1423503799]
 
 [node name="DartTrap1" parent="Room2" unique_id=832968254 instance=ExtResource("7_dart")]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -2.8, 0.1, -12)
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -2.6, 0.2, -11.5)
 shoot_interval = 2.0
 
 [node name="DartTrap2" parent="Room2" unique_id=924898130 instance=ExtResource("7_dart")]
-transform = Transform3D(4.37114e-08, 0, -1, 0, 1, 0, 1, 0, 4.37114e-08, 2.8, 0.1, -16)
+transform = Transform3D(4.37114e-08, 0, -1, 0, 1, 0, 1, 0, 4.37114e-08, 2.6, 0.2, -16.5)
 shoot_interval = 2.4
 
 [node name="WallLever1" parent="Room2" unique_id=1533023609 instance=ExtResource("11_lever")]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -2.8, 1.2, -14)
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -2.6, 1.2, -14)
+targets = Array[NodePath]([NodePath("../GateToRoom3")])
 
 [node name="PushableBlock1" parent="Room2" unique_id=485784848 instance=ExtResource("6_block")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -9.5)
@@ -404,11 +400,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -20)
 
 [node name="GateToRoom3" parent="Room2" unique_id=1817856895 instance=ExtResource("5_door")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -22)
+required_triggers = 2
 pressure_plates = Array[NodePath]([NodePath("../PlateEnd")])
-
-[node name="SunReceiver1" parent="Room2" unique_id=714357380 instance=ExtResource("14_sun")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -21.8)
-required_target = NodePath("../GateToRoom3")
 
 [node name="Room3" type="Node3D" parent="." unique_id=268942604]
 

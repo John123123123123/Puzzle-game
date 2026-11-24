@@ -250,7 +250,7 @@ func _build_graphics_tab(parent: Control) -> Control:
 
 func _build_display_tab(parent: Control) -> Control:
 	var page := _make_page(parent)
-	_add_option_row(page, "Window Mode", ["Windowed", "Fullscreen", "Exclusive Fullscreen"], SettingsManager.window_mode, func(idx: int):
+	_add_option_row(page, "Window Mode", ["Windowed", "Borderless Fullscreen", "Exclusive Fullscreen"], SettingsManager.window_mode, func(idx: int):
 		SettingsManager.window_mode = idx
 		SettingsManager.apply_display()
 		SettingsManager.save_settings()
@@ -413,6 +413,8 @@ func _on_reset_defaults() -> void:
 	_tab_pages.clear()
 	_build_ui()
 	_select_tab(_active_tab)
+	if is_instance_valid(_close_button):
+		_close_button.grab_focus()
 
 func _close() -> void:
 	closed.emit()

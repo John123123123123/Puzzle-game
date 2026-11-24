@@ -10,17 +10,15 @@ extends "res://scenes/levels/base_temple_level.gd"
 @onready var sun_receiver: SunReceiver = $Chamber/SunReceiver
 @onready var pharaoh_gate: AncientDoor = $Chamber/PharaohGate
 
-# Co-op plates
+# Co-op / Relic plates
 @onready var plate_1: PressurePlate = $Chamber/Plate1
 @onready var plate_2: PressurePlate = $Chamber/Plate2
-@onready var plate_3: PressurePlate = $Chamber/Plate3
-@onready var plate_4: PressurePlate = $Chamber/Plate4
 
 var _pushable_blocks: Array = []
 
 func _ready() -> void:
 	super._ready()
-	hud.set_objective("Level 2: Direct the sunbeam through the mirrors to break the seal!")
+	hud.set_objective("Level 2: Weigh down both sun seals and direct the sunbeam into the solar crystal!")
 	spawn_initial_players(get_configured_player_count(1))
 	_pushable_blocks = get_tree().get_nodes_in_group("pushable")
 
@@ -29,11 +27,10 @@ func _ready() -> void:
 	mirror_2.rotated.connect(_evaluate_mirrors)
 	_evaluate_mirrors()
 
-	var scarab_spots: Array[Vector3] = []
-	if is_instance_valid(plate_3):
-		scarab_spots.append(plate_3.global_position + Vector3(0.0, 0.0, 1.8))
-	if is_instance_valid(plate_4):
-		scarab_spots.append(plate_4.global_position + Vector3(0.0, 0.0, 1.8))
+	var scarab_spots: Array[Vector3] = [
+		Vector3(-6.8, 0.1, -5.5),
+		Vector3(6.8, 0.1, -5.5),
+	]
 	if is_instance_valid(pharaoh_gate):
 		scarab_spots.append(pharaoh_gate.global_position + Vector3(0.0, 0.0, -2.5))
 	spawn_scarabs(scarab_spots)

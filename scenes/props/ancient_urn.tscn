@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/props/ancient_urn.gd" id="1_urn"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_urn"]
 height = 0.8
@@ -6,12 +8,23 @@ radius = 0.35
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_terracotta"]
 albedo_color = Color(0.68, 0.38, 0.22, 1)
-roughness = 0.85
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold_trim"]
+albedo_color = Color(0.88, 0.68, 0.22, 1)
+metallic = 0.85
+roughness = 0.3
 
 [sub_resource type="SphereMesh" id="SphereMesh_body"]
 material = SubResource("StandardMaterial3D_terracotta")
 radius = 0.35
 height = 0.65
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_band"]
+material = SubResource("StandardMaterial3D_gold_trim")
+top_radius = 0.355
+bottom_radius = 0.355
+height = 0.06
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_neck"]
 material = SubResource("StandardMaterial3D_terracotta")
@@ -19,9 +32,13 @@ top_radius = 0.22
 bottom_radius = 0.18
 height = 0.25
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 0.75
+
 [node name="AncientUrn" type="StaticBody3D"]
 collision_layer = 1
 collision_mask = 6
+script = ExtResource("1_urn")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
@@ -31,6 +48,18 @@ shape = SubResource("CylinderShape3D_urn")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
 mesh = SubResource("SphereMesh_body")
 
+[node name="GoldBand" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, 0)
+mesh = SubResource("CylinderMesh_band")
+
 [node name="NeckMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 mesh = SubResource("CylinderMesh_neck")
+
+[node name="InteractionArea" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("SphereShape3D_interact")

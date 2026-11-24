@@ -4,6 +4,7 @@ class_name SpikeTrap
 @export var cycle_time: float = 3.0
 @export var warning_time: float = 0.5
 @export var active_time: float = 1.0
+@export var phase_offset: float = 0.0
 @export var damage: int = 1
 
 var is_active: bool = false
@@ -19,7 +20,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	timer += delta
-	var current_phase = fmod(timer, cycle_time)
+	var current_phase = fmod(timer + phase_offset, cycle_time)
 
 	if current_phase < (cycle_time - warning_time - active_time):
 		# Retracted safe state
@@ -35,9 +36,6 @@ func _physics_process(delta: float) -> void:
 
 func _thrust_spikes() -> void:
 	is_active = true
-
-	if is_instance_valid(AudioManager):
-		AudioManager.play_sfx_3d(&"spike_thrust", global_position, 0.94, 1.06, -2.0, 18.0, 4.0)
 
 	var tween = create_tween()
 	# Fast, violent snap upward with overshoot

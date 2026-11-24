@@ -2,10 +2,10 @@ extends Node3D
 class_name DartTrap
 
 @export var shoot_interval: float = 1.8
-@export var dart_speed: float = 14.0
+@export var dart_speed: float = 9.5
 @export var dart_range: float = 10.0
 @export var is_active: bool = true
-@export var trigger_delay: float = 0.10
+@export var trigger_delay: float = 0.28
 
 var _cooldown_timer: float = 0.0
 var _is_triggering: bool = false
@@ -106,11 +106,10 @@ func _shoot_dart() -> void:
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"dart_launch", global_position, 0.96, 1.05, 0.0, 20.0, 5.0)
 
-	# Spawn projectile
+	# Spawn projectile oriented along SpawnPoint (+Z out from the wall)
 	var dart = preload("res://scenes/puzzles/dart_projectile.tscn").instantiate() as DartProjectile
 	get_parent().add_child(dart)
-	dart.global_position = spawn_point.global_position
-	dart.global_rotation = global_rotation
+	dart.global_transform = spawn_point.global_transform
 	dart.speed = dart_speed
 	dart.max_distance = dart_range
 

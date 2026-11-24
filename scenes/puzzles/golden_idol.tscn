@@ -1,28 +1,56 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/golden_idol.gd" id="1_idol"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_pickup"]
-radius = 0.8
+radius = 0.9
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_obsidian"]
+albedo_color = Color(0.14, 0.12, 0.15, 1)
+metallic = 0.6
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="BoxMesh_plinth"]
+material = SubResource("StandardMaterial3D_obsidian")
+size = Vector3(0.46, 0.1, 0.46)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold"]
-albedo_color = Color(1, 0.84, 0.0, 1)
-metallic = 0.95
-roughness = 0.18
+albedo_color = Color(1, 0.84, 0.12, 1)
+metallic = 0.96
+roughness = 0.14
 emission_enabled = true
-emission = Color(1, 0.8, 0.15, 1)
-emission_energy_multiplier = 0.35
+emission = Color(0.95, 0.72, 0.12, 1)
+emission_energy_multiplier = 0.45
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_idol"]
 material = SubResource("StandardMaterial3D_gold")
-top_radius = 0.2
-bottom_radius = 0.28
-height = 0.55
+top_radius = 0.17
+bottom_radius = 0.24
+height = 0.48
+
+[sub_resource type="BoxMesh" id="BoxMesh_arms"]
+material = SubResource("StandardMaterial3D_gold")
+size = Vector3(0.42, 0.12, 0.24)
 
 [sub_resource type="SphereMesh" id="SphereMesh_head"]
 material = SubResource("StandardMaterial3D_gold")
-radius = 0.18
-height = 0.36
+radius = 0.17
+height = 0.34
+
+[sub_resource type="BoxMesh" id="BoxMesh_nemes"]
+material = SubResource("StandardMaterial3D_gold")
+size = Vector3(0.46, 0.28, 0.16)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ruby"]
+albedo_color = Color(1, 0.1, 0.18, 1)
+emission_enabled = true
+emission = Color(1, 0.12, 0.2, 1)
+emission_energy_multiplier = 3.2
+
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+material = SubResource("StandardMaterial3D_ruby")
+radius = 0.032
+height = 0.064
 
 [node name="GoldenIdol" type="Node3D" groups=["carryable"]]
 script = ExtResource("1_idol")
@@ -32,19 +60,39 @@ collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PickupArea"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
 shape = SubResource("SphereShape3D_pickup")
 
+[node name="Plinth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+mesh = SubResource("BoxMesh_plinth")
+
 [node name="Base" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.34, 0)
 mesh = SubResource("CylinderMesh_idol")
 
+[node name="RoyalArms" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0.03)
+mesh = SubResource("BoxMesh_arms")
+
 [node name="Head" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 mesh = SubResource("SphereMesh_head")
 
+[node name="NemesCrown" type="MeshInstance3D" parent="Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.03)
+mesh = SubResource("BoxMesh_nemes")
+
+[node name="EyeL" type="MeshInstance3D" parent="Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.06, 0.03, 0.15)
+mesh = SubResource("SphereMesh_eye")
+
+[node name="EyeR" type="MeshInstance3D" parent="Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0.03, 0.15)
+mesh = SubResource("SphereMesh_eye")
+
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
-light_color = Color(1, 0.85, 0.3, 1)
-light_energy = 1.5
-omni_range = 3.5
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+light_color = Color(1, 0.85, 0.28, 1)
+light_energy = 2.0
+omni_range = 4.5

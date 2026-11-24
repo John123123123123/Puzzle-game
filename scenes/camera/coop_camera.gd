@@ -156,6 +156,7 @@ func _update_wall_occlusion() -> void:
 		if not occluded_meshes.has(mesh):
 			occluded_meshes[mesh] = mesh.transparency
 		mesh.transparency = lerpf(mesh.transparency, 0.72, 0.2)
+		mesh.set_instance_shader_parameter("occlusion_fade", mesh.transparency)
 
 	# Restore transparency for unoccluded meshes
 	_to_remove_buf.clear()
@@ -165,7 +166,10 @@ func _update_wall_occlusion() -> void:
 				mesh.transparency = lerpf(mesh.transparency, 0.0, 0.2)
 				if mesh.transparency < 0.02:
 					mesh.transparency = 0.0
+					mesh.set_instance_shader_parameter("occlusion_fade", 0.0)
 					_to_remove_buf.append(mesh)
+				else:
+					mesh.set_instance_shader_parameter("occlusion_fade", mesh.transparency)
 			else:
 				_to_remove_buf.append(mesh)
 
