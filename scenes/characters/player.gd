@@ -28,6 +28,7 @@ const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
 
 var hurt_light: OmniLight3D = null
 var prompt_label: Label3D = null
+var revive_area: Area3D = null
 var _last_step_half_cycle: int = 0
 var _hud: Node = null
 var _coop_cameras: Array = []
@@ -127,6 +128,20 @@ func _ready() -> void:
 	prompt_label.modulate = Color(1.0, 0.94, 0.72)
 	prompt_label.visible = false
 	add_child(prompt_label)
+
+	# Co-op revive area (enabled only while downed)
+	revive_area = Area3D.new()
+	revive_area.collision_layer = 4
+	revive_area.collision_mask = 0
+	revive_area.monitoring = false
+	revive_area.monitorable = false
+	var rev_col := CollisionShape3D.new()
+	var rev_sphere := SphereShape3D.new()
+	rev_sphere.radius = 1.15
+	rev_col.shape = rev_sphere
+	rev_col.position = Vector3(0, 0.5, 0)
+	revive_area.add_child(rev_col)
+	add_child(revive_area)
 
 func _apply_player_identity() -> void:
 	var idx = clampi(player_id - 1, 0, 3)
@@ -428,13 +443,27 @@ func use_whip() -> void:
 func _can_interact_while_carrying(target: Node3D) -> bool:
 	if not is_instance_valid(target) or target == carried_item:
 		return false
+	if target is Player:
+		return target != self and target.current_health <= 0
 	if target.is_in_group("carryable") or target is PushableBlock or target.is_in_group("pushable"):
 		return false
 	if target is Brazier and target.is_lit:
 		return false
 	return target.has_method("interact")
 
-func interact() -> void:
+func get_interact_prompt() -> String:
+	return "Revive Ally" if current_health <= 0 else ""
+
+func on_whipped(by_player: Player) -> void:
+	if current_health <= 0 and is_instance_valid(by_player) and by_player != self and by_player.current_health > 0:
+		revive_in_place()
+
+func interact(by_player: Player = null) -> void:
+	if by_player != null and by_player != self:
+		if current_health <= 0 and by_player.current_health > 0:
+			revive_in_place()
+		return
+
 	# If carrying something (e.g., Torch), prioritize lighting an unlit Brazier or operating a switch
 	if carried_item != null:
 		if _can_interact_while_carrying(current_interactable):
@@ -536,7 +565,7 @@ func heal(amount: int = 1) -> void:
 		)
 
 func take_damage(amount: int = 1) -> void:
-	if is_invulnerable or current_health <= 0:
+	if is_invulnerable or is_dashing or current_health <= 0:
 		return
 	current_health -= amount
 	health_changed.emit(current_health)
@@ -615,6 +644,9 @@ func _die() -> void:
 		grabbed_block.release()
 	is_invulnerable = true
 	is_staggering = true
+	is_dashing = false
+	if is_instance_valid(revive_area):
+		revive_area.set_deferred("monitorable", true)
 
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"player_death", global_position, 0.95, 1.05, 0.0, 30.0, 7.0)
@@ -630,9 +662,27 @@ func _die() -> void:
 	tween.tween_property(mesh_root, "position:y", 0.12, 0.35)
 	player_died.emit(self)
 
+func revive_in_place() -> void:
+	if current_health > 0:
+		return
+	respawn_at(global_position + Vector3(0.0, 0.1, 0.0))
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"scarab_pickup", global_position, 0.90, 0.96, -3.0, 22.0, 5.0)
+	if is_instance_valid(hurt_light):
+		hurt_light.light_color = Color(0.25, 1.0, 0.50)
+		hurt_light.light_energy = 3.5
+		var tw := create_tween()
+		tw.tween_property(hurt_light, "light_energy", 0.0, 0.45)
+		tw.chain().tween_callback(func():
+			if is_instance_valid(hurt_light):
+				hurt_light.light_color = Color(1.0, 0.15, 0.15)
+		)
+
 func respawn_at(pos: Vector3) -> void:
 	if not is_instance_valid(self) or not is_inside_tree():
 		return
+	if is_instance_valid(revive_area):
+		revive_area.set_deferred("monitorable", false)
 	current_health = maxi(1, max_health - 1)
 	health_changed.emit(current_health)
 	is_staggering = false
@@ -704,6 +754,12 @@ func _update_interact_prompt() -> void:
 
 func _on_interaction_area_entered(area: Area3D) -> void:
 	var target = area.get_parent()
+	if target == self:
+		return
+	if target is Player:
+		if target.current_health <= 0:
+			current_interactable = target
+		return
 	if target and (target.has_method("interact") or target.is_in_group("carryable")):
 		current_interactable = target
 

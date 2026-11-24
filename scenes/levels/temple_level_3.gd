@@ -1,40 +1,61 @@
 extends "res://scenes/levels/base_temple_level.gd"
-## Campaign Level 3 (FINALE): Golden Idol Temple & Giant Boulder Escape
+## Campaign Level 4 (FINALE): Temple of the Golden Idol (5-Room Co-op Scaled Climax & Boulder Escape)
 ## Mapped as FINALE_LEVEL in GameManager.
 
 @export var start_with_two_players: bool = false
 
-@onready var golden_idol: GoldenIdol = $Room3/GoldenIdol
-@onready var giant_boulder: GiantBoulder = $Room3/GiantBoulder
-@onready var pedestal: StaticBody3D = $Room3/Pedestal
+@onready var golden_idol: GoldenIdol = $Room5/GoldenIdol
+@onready var giant_boulder: GiantBoulder = $Room5/GiantBoulder
+@onready var pedestal: StaticBody3D = $Room5/Pedestal
 @onready var escape_zone: Area3D = $Architecture/EscapeZone
+
 @onready var gate_room2: AncientDoor = $Room1/GateToRoom2
 @onready var gate_room3: AncientDoor = $Room2/GateToRoom3
+@onready var gate_room4: AncientDoor = $Room3/GateToRoom4
+@onready var gate_room5: AncientDoor = $Room4/GateToRoom5
+
+# Room 3 Pharaoh's Trial elements
+@onready var trial_mirror_1: MirrorPillar = $Room3/TrialMirror1
+@onready var trial_mirror_2: MirrorPillar = $Room3/TrialMirror2
+@onready var trial_receiver: SunReceiver = $Room3/TrialSunReceiver
+@onready var trial_brazier_1: Brazier = $Room3/TrialBrazier1
+@onready var trial_brazier_2: Brazier = $Room3/TrialBrazier2
+
+# Room 4 Anubis Judgment Hall levers
+@onready var judgment_lever_l: WallLever = $Room4/JudgmentLeverL
+@onready var judgment_lever_r: WallLever = $Room4/JudgmentLeverR
 
 var is_escaping: bool = false
-var _gate_room2_base_triggers: int = 2
-
-# Tracks which players have returned to spawn after grabbing the idol
+var _trial_braziers_lit: int = 0
 var players_in_escape_zone: Dictionary = {}
 
 func _ready() -> void:
 	super._ready()
 	var count = get_configured_player_count(2 if start_with_two_players else 1)
-
-	# Single-player friendly: Gate 1 only requires 1 trigger when solo
-	if is_instance_valid(gate_room2):
-		_gate_room2_base_triggers = gate_room2.required_triggers
-		if count == 1:
-			gate_room2.required_triggers = 1
-
-	if hud:
-		var lvl_num = GameManager.current_level_index if is_instance_valid(GameManager) else 3
-		if count == 1:
-			hud.set_objective("Level %d (FINALE): Solve the temple riddles and find the mythical Golden Idol!" % lvl_num)
-		else:
-			hud.set_objective("Level %d (FINALE): Cooperate to venture deep into the temple to reach the Golden Idol!" % lvl_num)
-
 	spawn_initial_players(count)
+
+	if is_instance_valid(trial_mirror_1):
+		trial_mirror_1.rotated.connect(_evaluate_trial_mirrors)
+	if is_instance_valid(trial_mirror_2):
+		trial_mirror_2.rotated.connect(_evaluate_trial_mirrors)
+	if is_instance_valid(trial_receiver):
+		trial_receiver.power_changed.connect(func(_p): _refresh_objective())
+	if is_instance_valid(trial_brazier_1):
+		trial_brazier_1.lit_state_changed.connect(_on_trial_brazier_lit)
+	if is_instance_valid(trial_brazier_2):
+		trial_brazier_2.lit_state_changed.connect(_on_trial_brazier_lit)
+
+	if is_instance_valid(judgment_lever_l):
+		judgment_lever_l.toggled.connect(func(_s): _refresh_objective())
+	if is_instance_valid(judgment_lever_r):
+		judgment_lever_r.toggled.connect(func(_s): _refresh_objective())
+
+	for g in [gate_room2, gate_room3, gate_room4, gate_room5]:
+		if is_instance_valid(g):
+			g.door_opened.connect(func(_d): _refresh_objective())
+
+	_evaluate_trial_mirrors()
+	_refresh_objective()
 
 	if golden_idol:
 		golden_idol.idol_taken.connect(_on_golden_idol_taken)
@@ -43,19 +64,74 @@ func _ready() -> void:
 		escape_zone.body_entered.connect(_on_escape_zone_entered)
 		escape_zone.body_exited.connect(_on_escape_zone_exited)
 
-	var scarab_spots: Array[Vector3] = []
-	if is_instance_valid(gate_room2):
-		scarab_spots.append(gate_room2.global_position + Vector3(-2.0, 0.0, 2.0))
-	if is_instance_valid(gate_room3):
-		scarab_spots.append(gate_room3.global_position + Vector3(2.0, 0.0, 2.0))
-	if is_instance_valid(pedestal):
-		scarab_spots.append(pedestal.global_position + Vector3(2.5, 0.0, 0.0))
+	var scarab_spots: Array[Vector3] = [
+		Vector3(-5.2, 0.1, -3.8),
+		Vector3(2.8, 0.1, -18.5),
+		Vector3(-6.4, 0.1, -35.5),
+		Vector3(6.4, 0.1, -53.5),
+		Vector3(4.5, 0.1, -62.0),
+	]
 	spawn_scarabs(scarab_spots)
 
-func on_player_joined(total_players: int) -> void:
-	if total_players >= 2 and is_instance_valid(gate_room2) and not gate_room2.is_open:
-		gate_room2.required_triggers = _gate_room2_base_triggers
-		gate_room2._evaluate_door_state()
+func on_difficulty_scaled(party_size: int) -> void:
+	# Scale Giant Boulder pursuit speed with party size (6.4 solo -> 7.6 at 4P)
+	if is_instance_valid(giant_boulder):
+		giant_boulder.roll_speed = 6.4 + 0.4 * float(maxi(0, party_size - 1))
+	_refresh_objective()
+
+func _physics_process(_delta: float) -> void:
+	if (is_instance_valid(trial_mirror_1) and trial_mirror_1.is_turning) or (is_instance_valid(trial_mirror_2) and trial_mirror_2.is_turning):
+		_evaluate_trial_mirrors()
+
+func _evaluate_trial_mirrors(_angle: float = 0.0) -> void:
+	var all_m: Array[MirrorPillar] = [trial_mirror_1, trial_mirror_2]
+	var lit_m: Array[MirrorPillar] = []
+	var powered_r: Array[SunReceiver] = []
+
+	var current: MirrorPillar = trial_mirror_1
+	while is_instance_valid(current) and not lit_m.has(current):
+		lit_m.append(current)
+		var trace := current.trace_beam(26.0)
+		current.set_beam_active(true, trace["length"])
+		if trace["hit_receiver"] is SunReceiver:
+			powered_r.append(trace["hit_receiver"])
+			current = null
+		elif trace["hit_mirror"] is MirrorPillar:
+			current = trace["hit_mirror"]
+		else:
+			current = null
+
+	for m in all_m:
+		if is_instance_valid(m) and not lit_m.has(m):
+			m.set_beam_active(false)
+
+	if is_instance_valid(trial_receiver):
+		trial_receiver.set_powered(powered_r.has(trial_receiver))
+
+func _on_trial_brazier_lit(is_lit: bool) -> void:
+	if not is_lit:
+		return
+	_trial_braziers_lit += 1
+	if is_instance_valid(gate_room4):
+		gate_room4.register_trigger_activated()
+	_refresh_objective()
+
+func _refresh_objective() -> void:
+	if is_escaping or not is_instance_valid(hud):
+		return
+	var lvl_num := GameManager.current_level_index if is_instance_valid(GameManager) else 4
+	var p_cnt := maxi(1, players.size())
+	if is_instance_valid(gate_room5) and gate_room5.is_open:
+		hud.set_objective("Level %d (FINALE): Claim the mythical Golden Idol of Ra!" % lvl_num)
+	elif is_instance_valid(gate_room4) and gate_room4.is_open:
+		hud.set_objective("Level %d (FINALE): Survive Anubis Judgment Hall — pull both levers & hold %d Seal(s)!" % [lvl_num, p_cnt])
+	elif is_instance_valid(gate_room3) and gate_room3.is_open:
+		var sun_txt := "1/1" if (is_instance_valid(trial_receiver) and trial_receiver.is_powered) else "0/1"
+		hud.set_objective("Level %d (FINALE): Pharaoh's Trial — Solar (%s), Braziers (%d/2) & %d Seal(s)!" % [lvl_num, sun_txt, _trial_braziers_lit, p_cnt])
+	elif is_instance_valid(gate_room2) and gate_room2.is_open:
+		hud.set_objective("Level %d (FINALE): Breach the poison dart corridor — pull the lever & hold %d Seal(s)!" % [lvl_num, p_cnt])
+	else:
+		hud.set_objective("Level %d (FINALE): Unseal the %d outer offering plate(s) to begin the final descent!" % [lvl_num, p_cnt])
 
 # ---------------------------------------------------------------------------
 # Golden Idol grab sequence
@@ -67,17 +143,17 @@ func _on_golden_idol_taken(_by_player: Player) -> void:
 	is_escaping = true
 
 	if players.size() <= 1:
-		hud.set_objective("WARNING: TEMPLE COLLAPSE! Escape the boulder and run to the entrance!")
+		hud.set_objective("WARNING: TEMPLE COLLAPSE! Outrun the giant boulder all the way to the entrance!")
 		hud.show_victory("THE GOLDEN IDOL IS YOURS!\nRUN TO THE ENTRANCE!")
 	else:
-		hud.set_objective("WARNING: TEMPLE COLLAPSE! All players run to the entrance!")
+		hud.set_objective("WARNING: TEMPLE COLLAPSE! All %d explorers sprint back to the entrance!" % players.size())
 		hud.show_victory("THE GOLDEN IDOL IS YOURS!\nEVERYONE BACK TO THE ENTRANCE!")
 
 	_sink_pedestal()
 	_open_all_doors()
 	_trigger_temple_rumble()
 
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(1.8).timeout
 	if not is_instance_valid(self) or not is_inside_tree():
 		return
 	if is_instance_valid(giant_boulder):
@@ -87,7 +163,7 @@ func _sink_pedestal() -> void:
 	if not is_instance_valid(pedestal):
 		return
 	var tween = create_tween()
-	tween.tween_property(pedestal, "position:y", pedestal.position.y - 2.5, 1.5) \
+	tween.tween_property(pedestal, "position:y", pedestal.position.y - 2.5, 1.4) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.chain().tween_callback(func():
 		var col = pedestal.get_node_or_null("CollisionShape3D")
@@ -101,14 +177,9 @@ func _open_all_doors() -> void:
 		if door is AncientDoor:
 			door.force_open_permanent()
 
-	if is_instance_valid(gate_room2):
-		gate_room2.force_open_permanent()
-	if is_instance_valid(gate_room3):
-		gate_room3.force_open_permanent()
-
-# ---------------------------------------------------------------------------
-# Escape zone — track ALL spawned players returning to spawn
-# ---------------------------------------------------------------------------
+	for d in [gate_room2, gate_room3, gate_room4, gate_room5]:
+		if is_instance_valid(d):
+			d.force_open_permanent()
 
 func _on_escape_zone_entered(body: Node3D) -> void:
 	if not is_escaping or level_complete:
@@ -148,16 +219,12 @@ func _check_all_players_escaped() -> void:
 	_show_level_complete()
 
 func _show_level_complete() -> void:
-	var current_level = 1
+	var current_level = 4
 	if is_instance_valid(GameManager):
 		current_level = GameManager.current_level_index
 
 	hud.show_level_complete(current_level)
 
-# ---------------------------------------------------------------------------
-# Camera rumble helper
-# ---------------------------------------------------------------------------
-
 func _trigger_temple_rumble() -> void:
 	if is_instance_valid(coop_camera):
-		coop_camera.trigger_shake(0.18, 2.0)
+		coop_camera.trigger_shake(0.22, 2.4)

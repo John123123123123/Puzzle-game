@@ -1,37 +1,62 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/mirror_pillar.gd" id="1_mirror"]
 [ext_resource type="Shader" path="res://shaders/light_shaft.gdshader" id="2_shaft"]
+[ext_resource type="Shader" path="res://shaders/ancient_pillar.gdshader" id="3_pillar_shader"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_root"]
 height = 1.4
 radius = 0.55
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pedestal"]
-albedo_color = Color(0.42, 0.36, 0.28, 1)
-roughness = 0.88
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pedestal"]
+render_priority = 0
+shader = ExtResource("3_pillar_shader")
+shader_parameter/stone_light = Color(0.58, 0.49, 0.36, 1)
+shader_parameter/stone_dark = Color(0.34, 0.27, 0.19, 1)
+shader_parameter/groove_color = Color(0.16, 0.12, 0.08, 1)
+shader_parameter/gold_color = Color(0.94, 0.76, 0.28, 1)
+shader_parameter/lapis_color = Color(0.15, 0.40, 0.56, 1)
+shader_parameter/flute_count = 12.0
+shader_parameter/roughness_base = 0.78
+
+[sub_resource type="BoxMesh" id="BoxMesh_plinth"]
+material = SubResource("ShaderMaterial_pedestal")
+size = Vector3(1.16, 0.16, 1.16)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_base"]
-material = SubResource("StandardMaterial3D_pedestal")
-top_radius = 0.48
-bottom_radius = 0.55
-height = 0.8
+material = SubResource("ShaderMaterial_pedestal")
+top_radius = 0.44
+bottom_radius = 0.52
+height = 0.74
+radial_segments = 20
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bronze_ring"]
-albedo_color = Color(0.65, 0.52, 0.25, 1)
-metallic = 0.85
-roughness = 0.35
+albedo_color = Color(0.88, 0.70, 0.26, 1)
+metallic = 0.88
+roughness = 0.26
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_ring"]
 material = SubResource("StandardMaterial3D_bronze_ring")
-top_radius = 0.50
-bottom_radius = 0.50
-height = 0.08
+top_radius = 0.49
+bottom_radius = 0.49
+height = 0.09
+radial_segments = 24
+
+[sub_resource type="TorusMesh" id="TorusMesh_bezel"]
+material = SubResource("StandardMaterial3D_bronze_ring")
+inner_radius = 0.39
+outer_radius = 0.47
+rings = 24
+ring_segments = 12
+
+[sub_resource type="BoxMesh" id="BoxMesh_yoke_arm"]
+material = SubResource("StandardMaterial3D_bronze_ring")
+size = Vector3(0.08, 0.36, 0.08)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mirror_gold"]
-albedo_color = Color(1.0, 0.88, 0.45, 1)
+albedo_color = Color(1.0, 0.90, 0.52, 1)
 metallic = 0.98
-roughness = 0.08
+roughness = 0.06
 emission_enabled = false
 emission = Color(1, 0.92, 0.6, 1)
 emission_energy_multiplier = 1.8
@@ -40,7 +65,7 @@ emission_energy_multiplier = 1.8
 material = SubResource("StandardMaterial3D_mirror_gold")
 top_radius = 0.42
 bottom_radius = 0.42
-height = 0.04
+height = 0.045
 radial_segments = 24
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_core_beam"]
@@ -88,32 +113,47 @@ script = ExtResource("1_mirror")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
 shape = SubResource("CylinderShape3D_root")
 
+[node name="PlinthStep" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+mesh = SubResource("BoxMesh_plinth")
+
 [node name="BaseMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
 mesh = SubResource("CylinderMesh_base")
 
 [node name="BronzeRing" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.82, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
 mesh = SubResource("CylinderMesh_ring")
 
 [node name="PillarTop" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 
+[node name="YokeArmL" type="MeshInstance3D" parent="PillarTop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.46, 0.08, 0)
+mesh = SubResource("BoxMesh_yoke_arm")
+
+[node name="YokeArmR" type="MeshInstance3D" parent="PillarTop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.46, 0.08, 0)
+mesh = SubResource("BoxMesh_yoke_arm")
+
 [node name="MirrorFrame" type="Node3D" parent="PillarTop"]
-transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0.1, 0)
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0.12, 0)
+
+[node name="MirrorBezel" type="MeshInstance3D" parent="PillarTop/MirrorFrame"]
+mesh = SubResource("TorusMesh_bezel")
 
 [node name="MirrorDisc" type="MeshInstance3D" parent="PillarTop/MirrorFrame"]
 mesh = SubResource("CylinderMesh_mirror_disc")
 
 [node name="MirrorLight" type="OmniLight3D" parent="PillarTop"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
 visible = false
 light_color = Color(1, 0.92, 0.65, 1)
 light_energy = 2.2
 omni_range = 3.5
 
 [node name="BeamPivot" type="Node3D" parent="PillarTop"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
 visible = false
 
 [node name="CoreBeam" type="MeshInstance3D" parent="PillarTop/BeamPivot"]

@@ -5,20 +5,41 @@ class_name SpikeTrap
 @export var warning_time: float = 0.5
 @export var active_time: float = 1.0
 @export var phase_offset: float = 0.0
+@export var min_players: int = 1
 @export var damage: int = 1
 
 var is_active: bool = false
 var timer: float = 0.0
+var _base_cycle_time: float = 3.0
+var _base_warning_time: float = 0.5
+var _coop_enabled: bool = true
 
 @onready var spikes_mesh: Node3D = $SpikesRoot
 @onready var damage_area: Area3D = $DamageArea
 
 func _ready() -> void:
 	add_to_group("spike_trap")
+	_base_cycle_time = cycle_time
+	_base_warning_time = warning_time
 	damage_area.body_entered.connect(_on_body_entered)
 	spikes_mesh.position.y = -0.45
 
+func apply_coop_difficulty(player_count: int) -> void:
+	_coop_enabled = player_count >= min_players
+	visible = _coop_enabled
+	if is_instance_valid(damage_area):
+		damage_area.set_deferred("monitoring", _coop_enabled)
+	if not _coop_enabled:
+		is_active = false
+		spikes_mesh.position.y = -0.45
+		return
+	var extra := maxi(0, player_count - 1)
+	cycle_time = maxf(1.45, _base_cycle_time * (1.0 - 0.10 * float(extra)))
+	warning_time = maxf(0.28, _base_warning_time - 0.05 * float(extra))
+
 func _physics_process(delta: float) -> void:
+	if not _coop_enabled:
+		return
 	timer += delta
 	var current_phase = fmod(timer + phase_offset, cycle_time)
 

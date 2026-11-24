@@ -11,6 +11,8 @@ const SETTINGS_MENU_SCRIPT := preload("res://scenes/ui/settings_menu.gd")
 @onready var banner_label: Label = $CenterContainer/BannerLabel
 
 var player_labels: Dictionary = {}
+var player_prev_health: Dictionary = {}
+var player_max_health: Dictionary = {}
 var _level_complete_panel: Control = null
 var _game_over_panel: Control = null
 var _pause_panel: Control = null
@@ -23,6 +25,7 @@ var elapsed_time: float = 0.0
 var _last_displayed_second: int = -1
 var scarabs_collected: int = 0
 var scarabs_total: int = 0
+var party_difficulty_count: int = 1
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -51,6 +54,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_pause()
 		get_viewport().set_input_as_handled()
 
+func _make_temple_style(bg_col: Color = Color(0.09, 0.08, 0.12, 0.90), border_col: Color = Color(0.85, 0.68, 0.24, 0.92), border_w: int = 2, radius: int = 10) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg_col
+	sb.border_color = border_col
+	sb.border_width_left = border_w
+	sb.border_width_top = border_w
+	sb.border_width_right = border_w
+	sb.border_width_bottom = border_w
+	sb.corner_radius_top_left = radius
+	sb.corner_radius_top_right = radius
+	sb.corner_radius_bottom_left = radius
+	sb.corner_radius_bottom_right = radius
+	return sb
+
 func _setup_stats_hud() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -61,6 +78,7 @@ func _setup_stats_hud() -> void:
 
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _make_temple_style(Color(0.08, 0.07, 0.11, 0.86), Color(0.82, 0.66, 0.24, 0.85), 2, 8))
 	var pad := MarginContainer.new()
 	pad.add_theme_constant_override("margin_left", 12)
 	pad.add_theme_constant_override("margin_right", 12)
@@ -99,6 +117,17 @@ func register_scarab_collected() -> void:
 	scarabs_collected += 1
 	_update_stats_label()
 
+func set_party_difficulty(party_size: int) -> void:
+	party_difficulty_count = clampi(party_size, 1, 4)
+	_update_stats_label()
+
+func _get_difficulty_badge() -> String:
+	match party_difficulty_count:
+		1: return "⚔ Normal (1P)"
+		2: return "⚔⚔ Hard (2P)"
+		3: return "⚔⚔⚔ Ruthless (3P)"
+		_: return "💀 Cursed (4P)"
+
 func _format_time(seconds: float) -> String:
 	var mins := int(seconds) / 60
 	var secs := int(seconds) % 60
@@ -108,19 +137,22 @@ func _update_stats_label() -> void:
 	if not is_instance_valid(_stats_label):
 		return
 	var time_str := "⏱ %s" % _format_time(elapsed_time)
+	var diff_str := _get_difficulty_badge()
 	if scarabs_total > 0:
-		_stats_label.text = "%s   |   🪲 %d/%d" % [time_str, scarabs_collected, scarabs_total]
+		_stats_label.text = "%s   |   🪲 %d/%d   |   %s" % [time_str, scarabs_collected, scarabs_total, diff_str]
 	else:
-		_stats_label.text = time_str
+		_stats_label.text = "%s   |   %s" % [time_str, diff_str]
 
 func register_player(id: int, initial_health: int) -> void:
 	if player_labels.has(id):
 		return
 
+	var p_col := GameManager.get_player_color(id)
 	var panel = PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _make_temple_style(Color(0.08, 0.07, 0.11, 0.86), Color(p_col.r, p_col.g, p_col.b, 0.85), 2, 8))
 	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 10)
 	margin.add_theme_constant_override("margin_top", 4)
 	margin.add_theme_constant_override("margin_bottom", 4)
 
@@ -129,10 +161,13 @@ func register_player(id: int, initial_health: int) -> void:
 
 	var name_lbl = Label.new()
 	name_lbl.text = "P%d:" % id
-	name_lbl.modulate = GameManager.get_player_color(id)
+	name_lbl.modulate = p_col
+
+	player_max_health[id] = maxi(3, initial_health)
+	player_prev_health[id] = initial_health
 
 	var health_lbl = Label.new()
-	health_lbl.text = _get_heart_string(initial_health)
+	health_lbl.text = _get_heart_string(initial_health, player_max_health[id])
 
 	hbox.add_child(name_lbl)
 	hbox.add_child(health_lbl)
@@ -145,19 +180,80 @@ func register_player(id: int, initial_health: int) -> void:
 func update_player_health(id: int, new_health: int) -> void:
 	if player_labels.has(id):
 		var lbl = player_labels[id]
-		lbl.text = _get_heart_string(new_health)
-		# Red flash and punch effect on damage
+		var prev_h: int = int(player_prev_health.get(id, new_health))
+		var max_h: int = int(player_max_health.get(id, 3))
+		player_prev_health[id] = new_health
+		lbl.text = _get_heart_string(new_health, max_h)
+		var flash_col := Color(0.35, 1.9, 0.55) if new_health > prev_h else Color(2.0, 0.25, 0.25)
 		var tween = create_tween()
-		tween.tween_property(lbl, "modulate", Color(2.0, 0.25, 0.25), 0.08)
-		tween.tween_property(lbl, "modulate", Color.WHITE, 0.22)
+		tween.tween_property(lbl, "modulate", flash_col, 0.09)
+		tween.tween_property(lbl, "modulate", Color.WHITE, 0.24)
 
-func _get_heart_string(health: int) -> String:
-	var s = ""
-	for i in range(max(0, health)):
-		s += "❤️"
+func _get_heart_string(health: int, max_h: int = 3) -> String:
 	if health <= 0:
-		s = "💀 Defeated"
+		return "💀 Downed"
+	var s := ""
+	for i in range(max_h):
+		s += "❤️" if i < health else "🖤"
 	return s
+
+func show_chapter_banner(level_num: int) -> void:
+	const CHAPTER_TITLES := {
+		1: ["CHAPTER I", "THE DARK CATACOMBS"],
+		2: ["CHAPTER II", "CHAMBER OF MIRRORS"],
+		3: ["CHAPTER III", "VAULT OF TWIN MOONS"],
+		4: ["FINAL CHAPTER", "THE GOLDEN IDOL"],
+	}
+	var info: Array = CHAPTER_TITLES.get(level_num, ["CHAPTER %d" % level_num, "ANCIENT SANCTUM"])
+
+	var holder := MarginContainer.new()
+	holder.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	holder.add_theme_constant_override("margin_top", 108)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(center)
+
+	var card := PanelContainer.new()
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_theme_stylebox_override("panel", _make_temple_style(Color(0.06, 0.05, 0.09, 0.84), Color(0.95, 0.78, 0.28, 0.90), 2, 10))
+	center.add_child(card)
+
+	var pad := MarginContainer.new()
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_theme_constant_override("margin_left", 28)
+	pad.add_theme_constant_override("margin_right", 28)
+	pad.add_theme_constant_override("margin_top", 10)
+	pad.add_theme_constant_override("margin_bottom", 10)
+	card.add_child(pad)
+
+	var vb := VBoxContainer.new()
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_theme_constant_override("separation", 2)
+	pad.add_child(vb)
+
+	var kicker := Label.new()
+	kicker.text = str(info[0])
+	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kicker.add_theme_font_size_override("font_size", 13)
+	kicker.modulate = Color(0.90, 0.80, 0.55)
+	vb.add_child(kicker)
+
+	var heading := Label.new()
+	heading.text = str(info[1])
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_font_size_override("font_size", 26)
+	heading.modulate = Color(1.0, 0.88, 0.28)
+	vb.add_child(heading)
+
+	add_child(holder)
+	holder.modulate.a = 0.0
+	var tw := holder.create_tween()
+	tw.tween_property(holder, "modulate:a", 1.0, 0.45)
+	tw.tween_interval(2.4)
+	tw.tween_property(holder, "modulate:a", 0.0, 0.65)
+	tw.chain().tween_callback(holder.queue_free)
 
 func set_objective(text: String) -> void:
 	objective_label.text = "Objective: " + text
@@ -185,14 +281,21 @@ func show_level_complete(level_num: int) -> void:
 
 	# --- Center panel ---
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(480, 300)
+	panel.custom_minimum_size = Vector2(520, 340)
+	panel.add_theme_stylebox_override("panel", _make_temple_style(Color(0.08, 0.07, 0.11, 0.95), Color(0.95, 0.78, 0.24, 1.0), 3, 14))
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 
+	var pad_win := MarginContainer.new()
+	pad_win.add_theme_constant_override("margin_left", 28)
+	pad_win.add_theme_constant_override("margin_right", 28)
+	pad_win.add_theme_constant_override("margin_top", 24)
+	pad_win.add_theme_constant_override("margin_bottom", 24)
+
 	var vbox = VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 24)
+	vbox.add_theme_constant_override("separation", 16)
 
 	# Title
 	var title = Label.new()
@@ -255,12 +358,27 @@ func show_level_complete(level_num: int) -> void:
 			get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 	)
 
+	var rank_lbl := Label.new()
+	if scarabs_total > 0 and scarabs_collected >= scarabs_total:
+		rank_lbl.text = "★★★  MASTER RAIDER"
+		rank_lbl.modulate = Color(1.0, 0.88, 0.25)
+	elif scarabs_collected >= 1:
+		rank_lbl.text = "★★☆  TEMPLE EXPLORER"
+		rank_lbl.modulate = Color(0.85, 0.92, 1.0)
+	else:
+		rank_lbl.text = "★☆☆  SURVIVOR"
+		rank_lbl.modulate = Color(0.82, 0.78, 0.70)
+	rank_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rank_lbl.add_theme_font_size_override("font_size", 22)
+
 	vbox.add_child(title)
+	vbox.add_child(rank_lbl)
 	vbox.add_child(sub)
 	vbox.add_child(stats)
 	vbox.add_child(btn_next)
 	vbox.add_child(btn_menu)
-	panel.add_child(vbox)
+	pad_win.add_child(vbox)
+	panel.add_child(pad_win)
 	add_child(panel)
 
 	_level_complete_panel = panel
@@ -293,6 +411,7 @@ func show_game_over() -> void:
 	# Panel container
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(480, 320)
+	panel.add_theme_stylebox_override("panel", _make_temple_style(Color(0.11, 0.05, 0.06, 0.95), Color(0.88, 0.22, 0.20, 0.95), 3, 14))
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -380,7 +499,8 @@ func _open_pause_menu() -> void:
 	add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(440, 320)
+	panel.custom_minimum_size = Vector2(440, 340)
+	panel.add_theme_stylebox_override("panel", _make_temple_style(Color(0.08, 0.07, 0.11, 0.95), Color(0.90, 0.74, 0.26, 0.95), 3, 14))
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -400,7 +520,7 @@ func _open_pause_menu() -> void:
 	title.modulate = Color(1.0, 0.85, 0.25)
 
 	var controls_box := Label.new()
-	controls_box.text = "P1: WASD + E (Interact) + Space (Whip)\nP2: Arrows + Enter (Interact) + R-Shift (Whip)\nCamera: Q / R or Right-Click Drag"
+	controls_box.text = "P1: WASD + E (Interact) + Space (Whip) + Shift/F (Roll)\nP2: Arrows + Enter (Interact) + R-Shift (Whip) + / (Roll)\nCamera: Q / R or Right-Click Drag"
 	controls_box.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_box.add_theme_font_size_override("font_size", 14)
 	controls_box.modulate = Color(0.85, 0.85, 0.8)
@@ -506,7 +626,7 @@ func show_controls_hint(duration: float = 7.5) -> void:
 	var cam_r := SettingsManager.get_action_key_label("cam_rotate_right") if is_instance_valid(SettingsManager) else "R"
 
 	var lbl := Label.new()
-	lbl.text = "Move: WASD   •   Interact / Grab: [%s]   •   Whip: [%s]   •   Rotate Camera: [%s / %s]" % [interact_key, whip_key, cam_l, cam_r]
+	lbl.text = "Move: WASD   •   Interact / Grab: [%s]   •   Whip: [%s]   •   Roll: [Shift]   •   Camera: [%s / %s]" % [interact_key, whip_key, cam_l, cam_r]
 	lbl.add_theme_font_size_override("font_size", 16)
 	lbl.modulate = Color(1.0, 0.94, 0.78)
 	pad.add_child(lbl)

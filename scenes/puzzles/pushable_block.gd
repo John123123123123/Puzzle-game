@@ -18,6 +18,7 @@ var _dust_timer: float = 0.0
 func _ready() -> void:
 	add_to_group("pushable")
 	add_to_group("interactable")
+	floor_snap_length = 0.16
 	spawn_position = global_position
 
 func get_interact_prompt() -> String:
@@ -34,6 +35,16 @@ func interact(player: Player) -> void:
 	elif grabbed_by == player:
 		release()
 
+func on_whipped(player: Player) -> void:
+	if is_instance_valid(grabbed_by) or not is_instance_valid(player):
+		return
+	var pull_dir := player.global_position - global_position
+	pull_dir.y = 0.0
+	if pull_dir.length_squared() > 0.05:
+		push_velocity = pull_dir.normalized() * 7.2
+		if is_instance_valid(get_parent()):
+			DUST_PUFF.spawn(get_parent(), global_position - Vector3(0, 0.3, 0), 3, 0.95)
+
 func grab(player: Player) -> void:
 	grabbed_by = player
 	if is_instance_valid(player):
@@ -48,33 +59,42 @@ func release() -> void:
 	grabbed_by = null
 
 func _physics_process(delta: float) -> void:
-	# Gravity
-	if not is_on_floor():
-		velocity.y -= 19.6 * delta
-	else:
-		velocity.y = 0.0
-
-	# If grabbed by a player, carry the crate in front of them
+	# If grabbed by a player, lift slightly and carry the crate smoothly in front of them
 	if is_instance_valid(grabbed_by):
 		var dist = global_position.distance_to(grabbed_by.global_position)
-		if dist > 2.8:
-			# Auto-release if blocked and player moves too far away
+		if dist > 3.6:
+			# Auto-release if blocked by a solid wall and player walks far away
 			release()
 		else:
 			var forward := Vector3(grabbed_by.mesh_root.global_basis.z.x, 0.0, grabbed_by.mesh_root.global_basis.z.z)
 			forward = forward.normalized() if forward.length_squared() > 0.0001 else Vector3.BACK
 			var target_pos := grabbed_by.global_position + forward * CARRY_DISTANCE
 			var to_target := target_pos - global_position
-			to_target.y = 0.0
 			velocity.x = to_target.x * CARRY_FOLLOW_SPEED
 			velocity.z = to_target.z * CARRY_FOLLOW_SPEED
+			var target_y := grabbed_by.global_position.y + 0.18
+			velocity.y = (target_y - global_position.y) * 14.0
 	else:
+		# Gravity when resting or pushed along the floor
+		if not is_on_floor():
+			velocity.y -= 19.6 * delta
+		else:
+			velocity.y = 0.0
 		# Natural push velocity from walking into it
 		velocity.x = push_velocity.x
 		velocity.z = push_velocity.z
 		push_velocity = push_velocity.move_toward(Vector3.ZERO, friction * delta)
 
 	move_and_slide()
+
+	# Save safe respawn spot when resting on permanent stone floor (not temporary phase bridges)
+	if grabbed_by == null and is_on_floor():
+		for i in get_slide_collision_count():
+			var col := get_slide_collision(i)
+			var col_body := col.get_collider()
+			if col.get_normal().y > 0.8 and col_body is StaticBody3D and not (col_body is PhasePlatform):
+				spawn_position = global_position
+				break
 
 	if global_position.y < -4.5:
 		release()

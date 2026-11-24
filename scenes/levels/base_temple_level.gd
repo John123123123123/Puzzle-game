@@ -25,6 +25,12 @@ func _ready() -> void:
 		AudioManager.start_ambient_temple()
 	if is_instance_valid(SettingsManager):
 		SettingsManager.apply_environment()
+	call_deferred("_announce_level_start")
+
+func _announce_level_start() -> void:
+	if is_instance_valid(hud) and hud.has_method("show_chapter_banner"):
+		var lvl_idx := GameManager.current_level_index if is_instance_valid(GameManager) else 1
+		hud.show_chapter_banner(lvl_idx)
 
 func _on_door_opened(door: Node3D) -> void:
 	if is_instance_valid(door):
@@ -33,6 +39,20 @@ func _on_door_opened(door: Node3D) -> void:
 ## Virtual hook overridden by levels that scale door triggers on co-op drop-in.
 func on_player_joined(_total_players: int) -> void:
 	pass
+
+## Virtual hook overridden by levels with custom difficulty scaling (e.g. boulder speed).
+func on_difficulty_scaled(_party_size: int) -> void:
+	pass
+
+func apply_party_difficulty(party_size: int) -> void:
+	var clamped_size := clampi(party_size, 1, 4)
+	for grp in ["spike_trap", "dart_trap", "flame_spinner", "pressure_plate", "ancient_door"]:
+		for node in get_tree().get_nodes_in_group(grp):
+			if is_instance_valid(node) and node.has_method("apply_coop_difficulty"):
+				node.apply_coop_difficulty(clamped_size)
+	if is_instance_valid(hud) and hud.has_method("set_party_difficulty"):
+		hud.set_party_difficulty(clamped_size)
+	on_difficulty_scaled(clamped_size)
 
 func spawn_scarabs(positions: Array[Vector3]) -> void:
 	for pos in positions:
@@ -85,14 +105,15 @@ func spawn_player(id: int, pos: Vector3) -> Player:
 		player.player_died.connect(_on_player_died)
 
 	on_player_joined(players.size())
+	apply_party_difficulty(players.size())
 	return player
 
 func _on_player_died(player: Player) -> void:
 	_check_game_over()
 	if is_game_over or level_complete or not _has_living_player():
 		return
-	# Respawn fallen co-op player at the latest unlocked gate after 4.0s
-	await get_tree().create_timer(4.0).timeout
+	# Respawn fallen co-op player at the latest unlocked gate after 5.5s if not revived on the spot
+	await get_tree().create_timer(5.5).timeout
 	if not is_instance_valid(self) or not is_inside_tree():
 		return
 	if is_game_over or level_complete or not _has_living_player():

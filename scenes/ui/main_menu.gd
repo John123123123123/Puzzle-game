@@ -30,6 +30,13 @@ var player_cards: Array[PanelContainer] = []
 var level_buttons: Array[Button] = []
 var _base_level_labels: Array[String] = []
 var _settings_open: bool = false
+var _title_pulse: float = 0.0
+
+func _process(delta: float) -> void:
+	_title_pulse += delta * 2.2
+	if is_instance_valid(title_label):
+		var glow := 0.92 + sin(_title_pulse) * 0.08
+		title_label.modulate = Color(1.0, glow, 0.72 + sin(_title_pulse) * 0.14)
 
 func _ready() -> void:
 	player_cards = [card_1, card_2, card_3, card_4]

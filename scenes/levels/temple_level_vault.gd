@@ -1,15 +1,24 @@
 extends "res://scenes/levels/base_temple_level.gd"
-## Campaign Level 3: Vault of Twin Moons (Solar / Lunar Phase-Shifting Puzzle)
-## Mapped as index 2 in GameManager.exploration_levels (between Chamber of Mirrors and The Golden Idol).
+## Campaign Level 3: Vault of Twin Moons (5-Section Co-op Scaled Astral Expedition)
+## Mapped as index 2 in GameManager.exploration_levels.
 
 @onready var gate_chamber_2: AncientDoor = $Chamber1/GateToChamber2
 @onready var sanctum_gate: AncientDoor = $Chamber2/SanctumGate
+@onready var eclipse_gate: AncientDoor = $Chamber3/EclipseGate
+@onready var observatory_gate: AncientDoor = $Chamber4/ObservatoryGate
+
 @onready var plate_chamber_1: PressurePlate = $Chamber1/PlateChamber1
 @onready var plate_west: PressurePlate = $Chamber2/PlateWest
 @onready var plate_east: PressurePlate = $Chamber2/PlateEast
-@onready var obelisk_center: PhaseObelisk = $Chamber1/ObeliskCenter
+
+@onready var brazier_sun: Brazier = $Chamber3/BrazierSun
+@onready var brazier_moon: Brazier = $Chamber3/BrazierMoon
+
+@onready var gauntlet_lever_w: WallLever = $Chamber4/GauntletLeverW
+@onready var gauntlet_lever_e: WallLever = $Chamber4/GauntletLeverE
 
 var _world_phase: int = 0 # 0 = Sun, 1 = Moon
+var _eclipse_braziers_lit: int = 0
 
 func _ready() -> void:
 	super._ready()
@@ -19,16 +28,23 @@ func _ready() -> void:
 		if node is PhaseObelisk:
 			node.phase_shifted.connect(_on_phase_shifted)
 
-	if is_instance_valid(plate_chamber_1):
-		plate_chamber_1.state_changed.connect(func(_a): _refresh_objective())
-	if is_instance_valid(plate_west):
-		plate_west.state_changed.connect(func(_a): _refresh_objective())
-	if is_instance_valid(plate_east):
-		plate_east.state_changed.connect(func(_a): _refresh_objective())
-	if is_instance_valid(gate_chamber_2):
-		gate_chamber_2.door_opened.connect(func(_d): _refresh_objective())
-	if is_instance_valid(sanctum_gate):
-		sanctum_gate.door_opened.connect(func(_d): _refresh_objective())
+	for pl in [plate_chamber_1, plate_west, plate_east]:
+		if is_instance_valid(pl):
+			pl.state_changed.connect(func(_a): _refresh_objective())
+
+	if is_instance_valid(brazier_sun):
+		brazier_sun.lit_state_changed.connect(_on_eclipse_brazier_lit)
+	if is_instance_valid(brazier_moon):
+		brazier_moon.lit_state_changed.connect(_on_eclipse_brazier_lit)
+
+	if is_instance_valid(gauntlet_lever_w):
+		gauntlet_lever_w.toggled.connect(func(_s): _refresh_objective())
+	if is_instance_valid(gauntlet_lever_e):
+		gauntlet_lever_e.toggled.connect(func(_s): _refresh_objective())
+
+	for g in [gate_chamber_2, sanctum_gate, eclipse_gate, observatory_gate]:
+		if is_instance_valid(g):
+			g.door_opened.connect(func(_d): _refresh_objective())
 
 	_refresh_objective()
 
@@ -36,25 +52,43 @@ func _ready() -> void:
 		Vector3(3.0, 0.1, -5.0),
 		Vector3(-5.8, 0.1, -29.2),
 		Vector3(5.8, 0.1, -29.2),
+		Vector3(5.0, 0.1, -42.5),
+		Vector3(0.0, 0.1, -65.5),
 	]
 	spawn_scarabs(scarab_spots)
 
+func on_difficulty_scaled(_party_size: int) -> void:
+	_refresh_objective()
+
 func _on_phase_shifted(new_phase: int) -> void:
 	_world_phase = new_phase
+	_refresh_objective()
+
+func _on_eclipse_brazier_lit(is_lit: bool) -> void:
+	if not is_lit:
+		return
+	_eclipse_braziers_lit += 1
+	if is_instance_valid(eclipse_gate):
+		eclipse_gate.register_trigger_activated()
 	_refresh_objective()
 
 func _refresh_objective() -> void:
 	if not is_instance_valid(hud):
 		return
 	var phase_name := "SUN" if _world_phase == 0 else "MOON"
-	if is_instance_valid(sanctum_gate) and sanctum_gate.is_open:
+	var p_cnt := maxi(1, players.size())
+	if is_instance_valid(observatory_gate) and observatory_gate.is_open:
 		hud.set_objective("Level 3 [Phase: %s]: Enter the astral portal to reach the Temple of the Golden Idol!" % phase_name)
+	elif is_instance_valid(eclipse_gate) and eclipse_gate.is_open:
+		hud.set_objective("Level 3 [Phase: %s]: Cross the Twin-Moon Gauntlet — pull both levers & hold %d Guardian Seal(s)!" % [phase_name, p_cnt])
+	elif is_instance_valid(sanctum_gate) and sanctum_gate.is_open:
+		hud.set_objective("Level 3 [Phase: %s]: Ignite Sun & Moon braziers (%d/2) and hold %d Eclipse Seal(s)!" % [phase_name, _eclipse_braziers_lit, p_cnt])
 	elif is_instance_valid(gate_chamber_2) and gate_chamber_2.is_open:
 		var plates_lit := 0
 		if is_instance_valid(plate_west) and plate_west.is_pressed:
 			plates_lit += 1
 		if is_instance_valid(plate_east) and plate_east.is_pressed:
 			plates_lit += 1
-		hud.set_objective("Level 3 [Phase: %s]: Shift Sun/Moon gates to retrieve both relics (%d/2 seals)!" % [phase_name, plates_lit])
+		hud.set_objective("Level 3 [Phase: %s]: Place both vault relics (%d/2) and hold %d Sanctum Seal(s)!" % [phase_name, plates_lit, p_cnt])
 	else:
-		hud.set_objective("Level 3 [Phase: %s]: Strike the Celestial Obelisks to shift bridges across the chasm!" % phase_name)
+		hud.set_objective("Level 3 [Phase: %s]: Carry the relic across the phase bridges & hold %d Astral Seal(s)!" % [phase_name, p_cnt])

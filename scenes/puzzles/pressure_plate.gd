@@ -5,9 +5,12 @@ signal state_changed(is_pressed: bool)
 
 @export var required_target_name: String = "" # Empty means any player or block
 @export var is_permanent: bool = false # Stays pressed once activated
+@export var player_only: bool = false # Co-op Guardian Seal: only living players can press
+@export var min_players: int = 1
 
 var is_pressed: bool = false
 var occupying_bodies: Array[Node3D] = []
+var _coop_enabled: bool = true
 
 @onready var plate_mesh: MeshInstance3D = $PlateMesh
 @onready var trigger_area: Area3D = $TriggerArea
@@ -26,13 +29,27 @@ func _ready() -> void:
 	if is_instance_valid(rune_glyph):
 		var mat = rune_glyph.get_active_material(0)
 		if mat:
-			rune_glyph.material_override = mat.duplicate()
+			var dup = mat.duplicate()
+			if player_only and dup is ShaderMaterial:
+				dup.set_shader_parameter("rune_glow_color", Color(0.28, 0.88, 1.0, 1.0))
+			rune_glyph.material_override = dup
 
 	# Initial visuals
 	_update_visuals(false, false)
 
+func apply_coop_difficulty(player_count: int) -> void:
+	_coop_enabled = player_count >= min_players
+	visible = _coop_enabled
+	if is_instance_valid(trigger_area):
+		trigger_area.set_deferred("monitoring", _coop_enabled)
+	if not _coop_enabled:
+		occupying_bodies.clear()
+		if is_pressed:
+			is_pressed = false
+			state_changed.emit(false)
+
 func _is_valid_body(body: Node3D) -> bool:
-	if not is_instance_valid(body) or not body.is_inside_tree():
+	if not _coop_enabled or not is_instance_valid(body) or not body.is_inside_tree():
 		return false
 
 	# Must not be static environment (e.g. floors, walls, rims)
@@ -43,10 +60,10 @@ func _is_valid_body(body: Node3D) -> bool:
 	if not required_target_name.is_empty():
 		return body.name == required_target_name or body.is_in_group(required_target_name)
 
-	# Valid bodies: Players or Pushable Blocks
+	# Valid bodies: Players (and Pushable Blocks unless player_only is set)
 	if body is Player or body.is_in_group("player"):
-		return true
-	if body is PushableBlock or body.is_in_group("pushable") or body.is_in_group("block"):
+		return not ("current_health" in body and body.current_health <= 0)
+	if not player_only and (body is PushableBlock or body.is_in_group("pushable") or body.is_in_group("block")):
 		return true
 
 	return false
@@ -89,7 +106,9 @@ func _animate_plate(pressed: bool) -> void:
 
 func _update_visuals(pressed: bool, animate: bool) -> void:
 	var target_energy = 2.8 if pressed else 0.4
-	var target_color = Color(1.0, 0.9, 0.3) if pressed else Color(0.7, 0.55, 0.2)
+	var active_col := Color(0.28, 0.92, 1.0) if player_only else Color(1.0, 0.9, 0.3)
+	var idle_col := Color(0.18, 0.52, 0.72) if player_only else Color(0.7, 0.55, 0.2)
+	var target_color = active_col if pressed else idle_col
 
 	if rune_light:
 		if animate:

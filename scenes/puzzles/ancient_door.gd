@@ -4,6 +4,7 @@ class_name AncientDoor
 signal door_opened(door: AncientDoor)
 
 @export var required_triggers: int = 1
+@export var coop_extra_triggers_per_player: int = 0
 @export var open_height: float = 4.8
 @export var open_duration: float = 1.0
 @export var pressure_plates: Array[NodePath] = []
@@ -13,6 +14,7 @@ var external_triggers_count: int = 0
 var active_triggers_count: int = 0
 var is_open: bool = false
 var closed_position: Vector3
+var _base_required_triggers: int = 1
 
 @onready var door_mesh: MeshInstance3D = $MeshInstance3D
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
@@ -23,6 +25,7 @@ var audio_player: AudioStreamPlayer3D = null
 
 func _ready() -> void:
 	closed_position = position
+	_base_required_triggers = required_triggers
 	add_to_group("ancient_door")
 
 	if is_instance_valid(door_mesh):
@@ -38,12 +41,17 @@ func _ready() -> void:
 	if rune_light_back:
 		rune_light_back.light_energy = 0.4
 
-	# Connect connected pressure plates
 	for path in pressure_plates:
 		var plate = get_node_or_null(path)
 		if plate and plate.has_signal("state_changed"):
 			plate.state_changed.connect(_on_plate_state_changed)
 
+	_evaluate_door_state()
+
+func apply_coop_difficulty(player_count: int) -> void:
+	if is_open or required_triggers == 0 or coop_extra_triggers_per_player <= 0:
+		return
+	required_triggers = _base_required_triggers + coop_extra_triggers_per_player * maxi(0, player_count - 1)
 	_evaluate_door_state()
 
 func _on_plate_state_changed(_is_active: bool) -> void:
@@ -65,19 +73,16 @@ func _get_pressed_plates_count() -> int:
 			count += 1
 	return count
 
-## Forces the door open permanently — it will never close again.
 func force_open_permanent() -> void:
-	required_triggers = 0  # Can't be un-met
+	required_triggers = 0
 	if not is_open:
 		is_open = true
 		_animate_door(true)
 		door_opened.emit(self)
-	# Immediately clear collision so boulder and players glide through
 	if is_instance_valid(collision_shape):
 		collision_shape.set_deferred("disabled", true)
 
 func _evaluate_door_state() -> void:
-	# If required_triggers is 0 the door is permanently open — skip normal logic
 	if required_triggers == 0:
 		return
 
@@ -89,7 +94,7 @@ func _evaluate_door_state() -> void:
 			_animate_door(true)
 			door_opened.emit(self)
 		if stays_open:
-			required_triggers = 0 # Locks it open permanently once unlocked
+			required_triggers = 0
 	elif not stays_open:
 		if is_open:
 			is_open = false
@@ -111,7 +116,6 @@ func _animate_door(open: bool) -> void:
 	if rune_light_back:
 		tween.tween_property(rune_light_back, "light_energy", target_energy, 0.6)
 
-	# Animate open_glow on door material
 	if is_instance_valid(door_mesh):
 		var mat = door_mesh.get_active_material(0) as ShaderMaterial
 		if not mat and door_mesh.mesh:
@@ -120,7 +124,6 @@ func _animate_door(open: bool) -> void:
 			var target_glow = 1.0 if open else 0.0
 			tween.tween_property(mat, "shader_parameter/open_glow", target_glow, 0.6)
 
-	# When opening, disable collision shape once raised to give 100% unobstructed passage
 	if open:
 		tween.chain().tween_callback(func():
 			if is_instance_valid(collision_shape):

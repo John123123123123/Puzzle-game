@@ -57,6 +57,11 @@ func interact(player: Player) -> void:
 		return
 	rotate_pillar()
 
+func on_whipped(_player: Player) -> void:
+	if not is_rotatable or is_turning:
+		return
+	rotate_pillar()
+
 func rotate_pillar() -> void:
 	is_turning = true
 	current_step = (current_step + 1) % 4

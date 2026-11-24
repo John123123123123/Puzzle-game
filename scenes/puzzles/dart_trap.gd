@@ -6,16 +6,25 @@ class_name DartTrap
 @export var dart_range: float = 10.0
 @export var is_active: bool = true
 @export var trigger_delay: float = 0.28
+@export var min_players: int = 1
 
 var _cooldown_timer: float = 0.0
 var _is_triggering: bool = false
 var _players_in_range: Array[Player] = []
 var _los_query: PhysicsRayQueryParameters3D = null
+var _base_interval: float = 1.8
+var _base_speed: float = 9.5
+var _base_delay: float = 0.28
+var _coop_enabled: bool = true
 
 @onready var spawn_point: Marker3D = $SpawnPoint
 @onready var trigger_area: Area3D = $TriggerArea
 
 func _ready() -> void:
+	add_to_group("dart_trap")
+	_base_interval = shoot_interval
+	_base_speed = dart_speed
+	_base_delay = trigger_delay
 	_los_query = PhysicsRayQueryParameters3D.new()
 	_los_query.collision_mask = 1 | 2 # Layer 1 = Environment/Crates, Layer 2 = Player
 	_los_query.exclude = [self]
@@ -23,6 +32,20 @@ func _ready() -> void:
 	if trigger_area:
 		trigger_area.body_entered.connect(_on_trigger_body_entered)
 		trigger_area.body_exited.connect(_on_trigger_body_exited)
+
+func apply_coop_difficulty(player_count: int) -> void:
+	_coop_enabled = player_count >= min_players
+	visible = _coop_enabled
+	if is_instance_valid(trigger_area):
+		trigger_area.set_deferred("monitoring", _coop_enabled)
+	if not _coop_enabled:
+		_players_in_range.clear()
+		set_process(false)
+		return
+	var extra := maxi(0, player_count - 1)
+	shoot_interval = maxf(0.95, _base_interval * (1.0 - 0.13 * float(extra)))
+	dart_speed = _base_speed + 1.4 * float(extra)
+	trigger_delay = maxf(0.12, _base_delay - 0.045 * float(extra))
 
 func _process(delta: float) -> void:
 	if not is_active:
@@ -70,7 +93,7 @@ func _has_line_of_sight(player: Player) -> bool:
 	return true
 
 func _evaluate_and_fire() -> void:
-	if not is_active or _is_triggering:
+	if not is_active or not _coop_enabled or _is_triggering:
 		return
 
 	var has_target = false
