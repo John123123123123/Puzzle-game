@@ -63,9 +63,28 @@ func on_whipped(_player: Player) -> void:
 	rotate_pillar()
 
 func rotate_pillar() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		_rpc_request_rotate.rpc_id(1)
+		return
+	var next_step := (current_step + 1) % 4
+	var next_rot := target_rot_y - PI / 2.0
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_rotate.rpc(next_step, next_rot)
+	_animate_to_step(next_step, next_rot)
+
+@rpc("any_peer", "reliable")
+func _rpc_request_rotate() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host and is_rotatable and not is_turning:
+		rotate_pillar()
+
+@rpc("authority", "reliable")
+func _rpc_sync_rotate(next_step: int, next_rot: float) -> void:
+	_animate_to_step(next_step, next_rot)
+
+func _animate_to_step(next_step: int, next_rot: float) -> void:
 	is_turning = true
-	current_step = (current_step + 1) % 4
-	target_rot_y -= PI / 2.0 # Smooth clockwise rotation
+	current_step = next_step
+	target_rot_y = next_rot
 
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"mirror_turn", global_position, 0.96, 1.04, 0.0, 25.0, 5.0)

@@ -20,6 +20,9 @@ var _pause_dim: ColorRect = null
 var _damage_vignette: ColorRect = null
 var _stats_margin: MarginContainer = null
 var _stats_label: Label = null
+var _offscreen_layer: Control = null
+var _ally_badges: Dictionary = {} # player_id -> PanelContainer
+var _pulse_clock: float = 0.0
 
 var elapsed_time: float = 0.0
 var _last_displayed_second: int = -1
@@ -32,6 +35,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	banner_label.visible = false
 	_setup_stats_hud()
+	_setup_offscreen_ally_layer()
 	_setup_damage_vignette()
 	if is_instance_valid(SettingsManager):
 		SettingsManager.settings_changed.connect(_apply_hud_settings)
@@ -42,12 +46,14 @@ func _apply_hud_settings() -> void:
 		_stats_margin.visible = SettingsManager.show_timer
 
 func _process(delta: float) -> void:
+	_pulse_clock += delta * 5.5
 	if not get_tree().paused and _level_complete_panel == null and _game_over_panel == null:
 		elapsed_time += delta
 		var current_sec := int(elapsed_time)
 		if current_sec != _last_displayed_second:
 			_last_displayed_second = current_sec
 			_update_stats_label()
+	_update_offscreen_ally_indicators()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -101,6 +107,122 @@ func _setup_damage_vignette() -> void:
 	_damage_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_damage_vignette.color = Color(0.85, 0.05, 0.05, 0.0)
 	add_child(_damage_vignette)
+
+func _setup_offscreen_ally_layer() -> void:
+	_offscreen_layer = Control.new()
+	_offscreen_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_offscreen_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_offscreen_layer)
+
+func _update_offscreen_ally_indicators() -> void:
+	if not is_instance_valid(_offscreen_layer):
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or _level_complete_panel != null or _game_over_panel != null:
+		for b in _ally_badges.values():
+			if is_instance_valid(b):
+				b.visible = false
+		return
+
+	var vp_size := get_viewport().get_visible_rect().size
+	var center := vp_size * 0.5
+	var margin_x := 68.0
+	var margin_y := 58.0
+	var seen_ids: Dictionary = {}
+
+	var all_players := get_tree().get_nodes_in_group("player")
+	for node in all_players:
+		if not (node is Player) or not is_instance_valid(node):
+			continue
+		var p := node as Player
+		if all_players.size() <= 1:
+			continue
+		if is_instance_valid(NetworkManager) and NetworkManager.is_online and p.is_local_controlled():
+			continue
+
+		seen_ids[p.player_id] = true
+		var world_pt := p.global_position + Vector3(0.0, 1.15, 0.0)
+		var behind := cam.is_position_behind(world_pt)
+		var proj := cam.unproject_position(world_pt)
+		if behind:
+			proj = center - (proj - center)
+
+		var is_offscreen := behind or proj.x < margin_x or proj.x > (vp_size.x - margin_x) or proj.y < margin_y or proj.y > (vp_size.y - margin_y)
+		var is_down := p.current_health <= 0
+
+		if not is_offscreen:
+			if _ally_badges.has(p.player_id) and is_instance_valid(_ally_badges[p.player_id]):
+				_ally_badges[p.player_id].visible = false
+			continue
+
+		var badge := _get_or_create_ally_badge(p.player_id)
+		var dir := (proj - center)
+		if dir.length_squared() < 0.001:
+			dir = Vector2.UP
+		else:
+			dir = dir.normalized()
+
+		var half_w := maxf(80.0, center.x - margin_x)
+		var half_h := maxf(60.0, center.y - margin_y)
+		var scale_x := half_w / maxf(0.001, absf(dir.x))
+		var scale_y := half_h / maxf(0.001, absf(dir.y))
+		var edge_pt := center + dir * minf(scale_x, scale_y)
+
+		var arrow := "▶"
+		if absf(dir.x) > absf(dir.y) * 1.5:
+			arrow = "▶" if dir.x > 0.0 else "◀"
+		elif absf(dir.y) > absf(dir.x) * 1.5:
+			arrow = "▼" if dir.y > 0.0 else "▲"
+		else:
+			if dir.x > 0.0:
+				arrow = "◢" if dir.y > 0.0 else "◥"
+			else:
+				arrow = "◣" if dir.y > 0.0 else "◤"
+
+		var tag := "P%d" % p.player_id
+		if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+			var pid := NetworkManager.get_peer_for_slot(p.player_id)
+			tag = str(NetworkManager.peer_names.get(pid, tag)).left(10)
+
+		var lbl := badge.get_node_or_null("Pad/Label") as Label
+		if lbl:
+			lbl.text = ("%s 🆘 %s DOWN!" % [arrow, tag]) if is_down else ("%s %s" % [arrow, tag])
+			if is_down:
+				var pulse := 0.75 + 0.25 * sin(_pulse_clock)
+				badge.modulate = Color(1.0, 0.35 * pulse, 0.35 * pulse, 0.96)
+			else:
+				badge.modulate = Color(1.0, 1.0, 1.0, 0.92)
+
+		badge.visible = true
+		badge.position = edge_pt - badge.size * 0.5
+
+	for id_key in _ally_badges.keys():
+		if not seen_ids.has(id_key) and is_instance_valid(_ally_badges[id_key]):
+			_ally_badges[id_key].visible = false
+
+func _get_or_create_ally_badge(pid: int) -> PanelContainer:
+	if _ally_badges.has(pid) and is_instance_valid(_ally_badges[pid]):
+		return _ally_badges[pid]
+	var col := GameManager.get_player_color(pid)
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _make_temple_style(Color(0.07, 0.06, 0.10, 0.90), col.lightened(0.2), 2, 8))
+	var pad := MarginContainer.new()
+	pad.name = "Pad"
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_theme_constant_override("margin_left", 9)
+	pad.add_theme_constant_override("margin_right", 9)
+	pad.add_theme_constant_override("margin_top", 4)
+	pad.add_theme_constant_override("margin_bottom", 4)
+	var lbl := Label.new()
+	lbl.name = "Label"
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.modulate = col.lightened(0.32)
+	pad.add_child(lbl)
+	panel.add_child(pad)
+	_offscreen_layer.add_child(panel)
+	_ally_badges[pid] = panel
+	return panel
 
 func flash_damage_vignette() -> void:
 	if not is_instance_valid(_damage_vignette):
@@ -269,6 +391,8 @@ func show_victory(text: String) -> void:
 func show_level_complete(level_num: int) -> void:
 	if _level_complete_panel:
 		return  # Already showing
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_2d(&"victory_fanfare", 0.99, 1.02, -3.0)
 
 	# --- Dim background ---
 	var dim = ColorRect.new()
@@ -333,8 +457,13 @@ func show_level_complete(level_num: int) -> void:
 	stats.modulate = Color(1.0, 0.9, 0.35) if show_new_record else Color(0.75, 0.92, 1.0)
 
 	# Next level button
+	var is_online_client := is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host
 	var btn_next = Button.new()
-	btn_next.text = "Complete Adventure 🏆" if is_final else "Next Level  →"
+	if is_online_client:
+		btn_next.text = "Waiting for Host..."
+		btn_next.disabled = true
+	else:
+		btn_next.text = "Complete Adventure 🏆" if is_final else "Next Level  →"
 	btn_next.custom_minimum_size = Vector2(240, 54)
 	btn_next.pressed.connect(func():
 		get_tree().paused = false
@@ -347,7 +476,7 @@ func show_level_complete(level_num: int) -> void:
 
 	# Menu button
 	var btn_menu = Button.new()
-	btn_menu.text = "Back to Menu"
+	btn_menu.text = "Leave Online Room" if is_online_client else "Back to Menu"
 	btn_menu.custom_minimum_size = Vector2(240, 42)
 	btn_menu.pressed.connect(func():
 		get_tree().paused = false
@@ -391,13 +520,19 @@ func show_level_complete(level_num: int) -> void:
 	p_tween.tween_property(panel, "modulate:a", 1.0, 0.5).set_delay(0.3)
 	p_tween.tween_property(panel, "position:y", panel.position.y - 120, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.3)
 
-	get_tree().paused = true
-	btn_next.grab_focus()
+	if not (is_instance_valid(NetworkManager) and NetworkManager.is_online):
+		get_tree().paused = true
+	if btn_next.disabled:
+		btn_menu.grab_focus()
+	else:
+		btn_next.grab_focus()
 
 ## Shows a full-screen Game Over overlay when all players have perished.
 func show_game_over() -> void:
 	if _game_over_panel or _level_complete_panel:
 		return
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_2d(&"game_over_toll", 0.98, 1.02, -2.0)
 
 	# Dark red vignette dimmer
 	var dim = ColorRect.new()
@@ -435,8 +570,10 @@ func show_game_over() -> void:
 	sub.modulate = Color(0.85, 0.8, 0.8)
 
 	# Retry button
+	var is_online_client := is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host
 	var btn_retry = Button.new()
-	btn_retry.text = "Try Again  ↺"
+	btn_retry.text = "Waiting for Host..." if is_online_client else "Try Again  ↺"
+	btn_retry.disabled = is_online_client
 	btn_retry.custom_minimum_size = Vector2(240, 52)
 	btn_retry.pressed.connect(func():
 		get_tree().paused = false
@@ -475,8 +612,12 @@ func show_game_over() -> void:
 	p_tween.tween_property(panel, "modulate:a", 1.0, 0.4).set_delay(0.2)
 	p_tween.tween_property(panel, "position:y", panel.position.y + 100, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.2)
 
-	get_tree().paused = true
-	btn_retry.grab_focus()
+	if not (is_instance_valid(NetworkManager) and NetworkManager.is_online):
+		get_tree().paused = true
+	if btn_retry.disabled:
+		btn_menu.grab_focus()
+	else:
+		btn_retry.grab_focus()
 
 ## Toggles the in-game pause menu. Returns true if paused, false if resumed.
 func toggle_pause() -> void:
@@ -520,7 +661,7 @@ func _open_pause_menu() -> void:
 	title.modulate = Color(1.0, 0.85, 0.25)
 
 	var controls_box := Label.new()
-	controls_box.text = "P1: WASD + E (Interact) + Space (Whip) + Shift/F (Roll)\nP2: Arrows + Enter (Interact) + R-Shift (Whip) + / (Roll)\nCamera: Q / R or Right-Click Drag"
+	controls_box.text = "P1 / Online: WASD + E (Interact) + Space (Whip) + Shift/F (Roll) + G/Tab (Ping)\nP2 (Local): Arrows + Enter (Interact) + R-Shift (Whip) + / (Roll) + . (Ping)\nCamera: Q / R or Right-Click Drag   •   Gamepad Y: Co-op Ping"
 	controls_box.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_box.add_theme_font_size_override("font_size", 14)
 	controls_box.modulate = Color(0.85, 0.85, 0.8)
@@ -585,7 +726,8 @@ func _open_pause_menu() -> void:
 	panel.add_child(margin)
 
 	_pause_panel = center
-	get_tree().paused = true
+	if not (is_instance_valid(NetworkManager) and NetworkManager.is_online):
+		get_tree().paused = true
 	btn_resume.grab_focus()
 
 func _close_pause_menu() -> void:
@@ -626,7 +768,7 @@ func show_controls_hint(duration: float = 7.5) -> void:
 	var cam_r := SettingsManager.get_action_key_label("cam_rotate_right") if is_instance_valid(SettingsManager) else "R"
 
 	var lbl := Label.new()
-	lbl.text = "Move: WASD   •   Interact / Grab: [%s]   •   Whip: [%s]   •   Roll: [Shift]   •   Camera: [%s / %s]" % [interact_key, whip_key, cam_l, cam_r]
+	lbl.text = "Move: WASD  •  Interact: [%s]  •  Whip: [%s]  •  Roll: [Shift]  •  Ping: [G/Tab]  •  Camera: [%s/%s]" % [interact_key, whip_key, cam_l, cam_r]
 	lbl.add_theme_font_size_override("font_size", 16)
 	lbl.modulate = Color(1.0, 0.94, 0.78)
 	pad.add_child(lbl)

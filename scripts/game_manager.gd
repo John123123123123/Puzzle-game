@@ -38,6 +38,7 @@ func _ready() -> void:
 
 func _register_dash_actions() -> void:
 	var key_map := {1: [KEY_SHIFT, KEY_F], 2: [KEY_SLASH], 3: [], 4: []}
+	var ping_map := {1: [KEY_G, KEY_TAB], 2: [KEY_PERIOD, KEY_KP_0], 3: [], 4: []}
 	for pid in range(1, 5):
 		var action := "p%d_dash" % pid
 		if not InputMap.has_action(action):
@@ -50,6 +51,22 @@ func _register_dash_actions() -> void:
 			je.device = pid - 1
 			je.button_index = JOY_BUTTON_B
 			InputMap.action_add_event(action, je)
+
+		var ping_action := "p%d_ping" % pid
+		if not InputMap.has_action(ping_action):
+			InputMap.add_action(ping_action)
+			for pkc in ping_map[pid]:
+				var pke := InputEventKey.new()
+				pke.physical_keycode = pkc
+				InputMap.action_add_event(ping_action, pke)
+			if pid == 1:
+				var mbe := InputEventMouseButton.new()
+				mbe.button_index = MOUSE_BUTTON_MIDDLE
+				InputMap.action_add_event(ping_action, mbe)
+			var pje := InputEventJoypadButton.new()
+			pje.device = pid - 1
+			pje.button_index = JOY_BUTTON_Y
+			InputMap.action_add_event(ping_action, pje)
 
 func load_progress() -> void:
 	level_progress.clear()
@@ -103,6 +120,18 @@ func record_level_clear(level_num: int, clear_time: float, scarabs: int, total_s
 func get_level_progress(level_num: int) -> Dictionary:
 	return level_progress.get(level_num, {})
 
+func get_campaign_summary() -> Dictionary:
+	var total_lvls := get_total_levels()
+	var cleared := 0
+	var got_scarabs := 0
+	var max_scarabs := total_lvls * 5
+	for i in range(1, total_lvls + 1):
+		var p: Dictionary = level_progress.get(i, {})
+		if not p.is_empty() and float(p.get("best_time", -1.0)) >= 0.0:
+			cleared += 1
+		got_scarabs += int(p.get("best_scarabs", 0))
+	return {"cleared": cleared, "total_levels": total_lvls, "scarabs": got_scarabs, "max_scarabs": max_scarabs}
+
 static func format_time(seconds: float) -> String:
 	var mins := int(seconds) / 60
 	var secs := int(seconds) % 60
@@ -130,6 +159,10 @@ func start_game(selected_players: int, start_level: int = 1) -> void:
 
 func load_level(level_num: int) -> void:
 	get_tree().paused = false
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		if NetworkManager.is_host:
+			NetworkManager.host_load_level(level_num)
+		return
 	var all_levels = get_levels()
 	current_level_index = clampi(level_num, 1, all_levels.size())
 	var scene_path = all_levels[current_level_index - 1]
@@ -137,6 +170,8 @@ func load_level(level_num: int) -> void:
 
 func next_level() -> void:
 	get_tree().paused = false
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 	var all_levels = get_levels()
 	if current_level_index < all_levels.size():
 		load_level(current_level_index + 1)
@@ -146,8 +181,17 @@ func next_level() -> void:
 
 func restart_current_level() -> void:
 	get_tree().paused = false
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 	load_level(current_level_index)
 
 func return_to_menu() -> void:
 	get_tree().paused = false
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		if NetworkManager.is_host:
+			NetworkManager.host_return_to_menu()
+		else:
+			NetworkManager.disconnect_session()
+			get_tree().change_scene_to_file(MAIN_MENU_SCENE)
+		return
 	get_tree().change_scene_to_file(MAIN_MENU_SCENE)

@@ -38,11 +38,25 @@ You can move the ancient sandstone blocks in two smooth ways:
 
 ---
 
-## 👥 Player Selection & Starting Level (1–4 Players)
+## 👥 Local Couch Co-op & 🌐 Online / LAN Co-op (1–4 Players)
 
-* Choose **1 to 4 players** and any **Starting Level** directly from the main menu.
-* **Drop-in:** Press `Enter` or Gamepad `A` to jump straight into the game.
-* Press **ESC** at any time during gameplay to return to the menu.
+* **Local Shared-Screen Co-op:** Choose **1 to 4 players** and any **Starting Level** directly from the main menu, or drop in mid-game with `Enter` / Gamepad `A`.
+* **🌐 Online / LAN Co-op (`ENetMultiplayerPeer`):** Click **🌐 Online / LAN Co-op** on the Main Menu to play across separate PCs, each with your own independent camera and full `WASD + E + Space + Shift` (or Controller) controls:
+  * **Host Room & Room Codes:** Click **Create Room** to host on UDP port `7777` and copy your 8-character **Room Code** (e.g. `C0A8-012A`).
+  * **Join Room:** Paste the Host's **Room Code**, LAN IPv4, VPN IP (Tailscale / Radmin VPN / ZeroTier), or public IP (with UDP `7777` forwarded on the host router) and click **Connect to Room**.
+  * **1-Click Localhost Test:** Open two game windows on one PC, click **Create Room** in Window 1, and click **Quick Join Local PC** in Window 2!
+* **Dynamic Co-op Difficulty:** Traps, Guardian Seal plates, and the Finale boulder dynamically scale to match your active party size (1P–4P).
+
+---
+
+## ⬇ In-Game Auto-Updater (`main` Branch)
+
+* The Main Menu automatically checks `John123123123123/Puzzle-game` (`main` branch) in the background and highlights **`⬇ Update Available!`** whenever new content is pushed.
+* Click **`⬇ Update Game`** on the Main Menu to view the latest commit message, author, and timestamp, and update in 1 click:
+  * **Git Clones (`.git` + `git`):** Runs a non-blocking `git fetch` & `git pull --ff-only origin main` (and safely offers to stash uncommitted local edits if any exist).
+  * **ZIP-Downloaded Folders (no `git` required):** Downloads the latest `main` archive directly from GitHub and extracts updated files using Godot 4's built-in `ZIPReader`.
+  * **Standalone Exported Builds:** Downloads and mounts a live resource-pack patch (`ZIPPacker` + `load_resource_pack`), plus provides a direct link to the GitHub repository.
+* Click **`🚀 Restart Game Now`** after updating to relaunch immediately with all new levels, scripts, and visuals.
 
 ---
 
@@ -50,8 +64,8 @@ You can move the ancient sandstone blocks in two smooth ways:
 
 | Action | Keyboard | Gamepad |
 | :--- | :--- | :--- |
-| **Player 1** | **W / A / S / D** (Move / Push block)<br>**E** (Grab block / Carry / Interact)<br>**Space** (Whip)<br>**Shift / F** (Dodge Roll) | **Left Stick** (Move / Push)<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip)<br>**B / Circle** (Dodge Roll) |
-| **Player 2** | **Arrow Keys** (Move)<br>**Enter** (Grab / Interact)<br>**Right Shift** (Whip)<br>**/** (Dodge Roll) | **Left Stick (Controller 2)**<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip)<br>**B / Circle** (Dodge Roll) |
+| **Player 1 / Online** | **W / A / S / D** (Move / Push block)<br>**E** (Grab block / Carry / Interact)<br>**Space** (Whip)<br>**Shift / F** (Dodge Roll)<br>**G / Tab / Middle-Click** (Co-op Ping) | **Left Stick** (Move / Push)<br>**A / Cross** (Grab / Interact)<br>**X / Square** (Whip)<br>**B / Circle** (Dodge Roll)<br>**Y / Triangle** (Co-op Ping) |
+| **Player 2 (Local)** | **Arrow Keys** (Move)<br>**Enter** (Grab / Interact)<br>**Right Shift** (Whip)<br>**/** (Dodge Roll)<br>**. / Numpad 0** (Co-op Ping) | **Left Stick (Controller 2)**<br>**A / X / B / Y** |
 | **Players 3 & 4** | - | **Controllers 3 & 4** (Stick + A/X) |
 | **Rotate Camera** | **Q / R** (or hold **Right Mouse Button** and drag) | **Right Stick** / **LB & RB** |
 | **Menu** | **ESC** | **Start / Menu** |

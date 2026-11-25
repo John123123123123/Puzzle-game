@@ -14,6 +14,7 @@ var scarab_scene = preload("res://scenes/puzzles/collectible_scarab.tscn")
 var is_game_over: bool = false
 var level_complete: bool = false
 var latest_checkpoint_pos: Vector3 = Vector3.ZERO
+var _world_sync_timer: float = 0.0
 
 func _ready() -> void:
 	if is_instance_valid(player_spawn_1):
@@ -21,11 +22,38 @@ func _ready() -> void:
 	for door in get_tree().get_nodes_in_group("ancient_door"):
 		if door.has_signal("door_opened"):
 			door.door_opened.connect(_on_door_opened)
+	if is_instance_valid(NetworkManager):
+		NetworkManager.slot_joined_midgame.connect(_on_online_slot_joined)
+		NetworkManager.slot_left_midgame.connect(_on_online_slot_left)
 	if is_instance_valid(AudioManager):
 		AudioManager.start_ambient_temple()
 	if is_instance_valid(SettingsManager):
 		SettingsManager.apply_environment()
 	call_deferred("_announce_level_start")
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_online or not NetworkManager.is_host:
+		return
+	_world_sync_timer += delta
+	if _world_sync_timer >= 0.05:
+		_world_sync_timer = 0.0
+		var paths: Array = []
+		var positions: PackedVector3Array = PackedVector3Array()
+		for b in get_tree().get_nodes_in_group("pushable"):
+			if is_instance_valid(b) and b is Node3D:
+				paths.append(get_path_to(b))
+				positions.append(b.global_position)
+		if not paths.is_empty():
+			_rpc_sync_blocks.rpc(paths, positions)
+
+@rpc("authority", "unreliable_ordered")
+func _rpc_sync_blocks(paths: Array, positions: PackedVector3Array) -> void:
+	for i in range(mini(paths.size(), positions.size())):
+		var node := get_node_or_null(paths[i]) as Node3D
+		if is_instance_valid(node):
+			if node is PushableBlock and is_instance_valid(node.grabbed_by) and node.grabbed_by.is_local_controlled():
+				continue
+			node.global_position = node.global_position.lerp(positions[i], 0.45)
 
 func _announce_level_start() -> void:
 	if is_instance_valid(hud) and hud.has_method("show_chapter_banner"):
@@ -55,27 +83,65 @@ func apply_party_difficulty(party_size: int) -> void:
 	on_difficulty_scaled(clamped_size)
 
 func spawn_scarabs(positions: Array[Vector3]) -> void:
-	for pos in positions:
+	for idx in range(positions.size()):
 		var scarab := scarab_scene.instantiate() as Area3D
+		scarab.name = "Scarab_%d" % idx
 		add_child(scarab)
-		scarab.global_position = pos
+		scarab.global_position = positions[idx]
 	if is_instance_valid(hud):
 		hud.set_scarab_total(positions.size())
 
 func get_configured_player_count(default_count: int = 1) -> int:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		return NetworkManager.get_online_player_count()
 	if is_instance_valid(GameManager):
 		return GameManager.player_count
 	return default_count
 
 func spawn_initial_players(count: int) -> void:
 	var spawn_markers = [player_spawn_1, player_spawn_2, player_spawn_3, player_spawn_4]
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		var slots: Array = NetworkManager.slot_to_peer.keys()
+		slots.sort()
+		for slot_val in slots:
+			var id := int(slot_val)
+			var idx := clampi(id - 1, 0, 3)
+			var pos = spawn_markers[idx].global_position if idx < spawn_markers.size() else player_spawn_1.global_position + Vector3(idx * 1.0, 0, 0)
+			spawn_player(id, pos)
+		return
+
 	for i in range(count):
 		var id = i + 1
 		var pos = spawn_markers[i].global_position if i < spawn_markers.size() else player_spawn_1.global_position + Vector3(i * 1.0, 0, 0)
 		spawn_player(id, pos)
 
+func _on_online_slot_joined(slot_id: int, _peer_id: int) -> void:
+	var pos := latest_checkpoint_pos + Vector3((slot_id - 1) * 0.6, 0.1, 0.6)
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host:
+		_rpc_spawn_midgame_player.rpc(slot_id, pos)
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_spawn_midgame_player(slot_id: int, pos: Vector3) -> void:
+	spawn_player(slot_id, pos)
+
+func _on_online_slot_left(slot_id: int, _peer_id: int) -> void:
+	if players.has(slot_id):
+		var p: Player = players[slot_id]
+		players.erase(slot_id)
+		if is_instance_valid(p):
+			if p.carried_item != null:
+				p._do_drop_item(p.global_position)
+			if is_instance_valid(p.grabbed_block):
+				p.grabbed_block.release()
+			if coop_camera:
+				coop_camera.unregister_target(p)
+			p.queue_free()
+		apply_party_difficulty(maxi(1, players.size()))
+
 func _unhandled_input(event: InputEvent) -> void:
-	# Drop-in join during gameplay at latest unlocked gate / checkpoint
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		return
+	# Local Couch Drop-in join during gameplay at latest unlocked gate / checkpoint
 	for id in range(1, 5):
 		var prefix = "p%d_" % id
 		if not players.has(id):
@@ -88,12 +154,13 @@ func spawn_player(id: int, pos: Vector3) -> Player:
 		return players[id]
 
 	var player = player_scene.instantiate() as Player
+	player.name = "Player_%d" % id
 	player.player_id = id
 	add_child(player)
 	player.global_position = pos
 	players[id] = player
 
-	if coop_camera:
+	if coop_camera and player.is_local_controlled():
 		coop_camera.register_target(player)
 
 	if hud:
@@ -110,6 +177,8 @@ func spawn_player(id: int, pos: Vector3) -> Player:
 
 func _on_player_died(player: Player) -> void:
 	_check_game_over()
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 	if is_game_over or level_complete or not _has_living_player():
 		return
 	# Respawn fallen co-op player at the latest unlocked gate after 5.5s if not revived on the spot

@@ -22,13 +22,22 @@ var is_dashing: bool = false
 var _dash_timer: float = 0.0
 var _dash_cooldown: float = 0.0
 var _dash_dir: Vector3 = Vector3.ZERO
+var _ping_cooldown: float = 0.0
+var _haste_timer: float = 0.0
 
 const WHIP_SCENE: PackedScene = preload("res://scenes/characters/whip_effect.tscn")
 const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
+const COOP_PING_BEACON := preload("res://scenes/effects/coop_ping_beacon.gd")
 
 var hurt_light: OmniLight3D = null
 var prompt_label: Label3D = null
+var name_tag_label: Label3D = null
 var revive_area: Area3D = null
+var _net_sync_timer: float = 0.0
+var _remote_target_pos: Vector3 = Vector3.ZERO
+var _remote_target_vel: Vector3 = Vector3.ZERO
+var _remote_target_yaw: float = 0.0
+var _has_remote_state: bool = false
 var _last_step_half_cycle: int = 0
 var _hud: Node = null
 var _coop_cameras: Array = []
@@ -98,8 +107,9 @@ func _ready() -> void:
 
 	# Register with coop camera & cache HUD/camera refs
 	_coop_cameras = get_tree().get_nodes_in_group("coop_camera")
-	for cam in _coop_cameras:
-		cam.register_target(self)
+	if is_local_controlled():
+		for cam in _coop_cameras:
+			cam.register_target(self)
 	_hud = get_tree().get_first_node_in_group("hud")
 
 	_whip_ray_query = PhysicsRayQueryParameters3D.new()
@@ -142,6 +152,34 @@ func _ready() -> void:
 	rev_col.position = Vector3(0, 0.5, 0)
 	revive_area.add_child(rev_col)
 	add_child(revive_area)
+
+	# Online player nametag
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		name_tag_label = Label3D.new()
+		name_tag_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		name_tag_label.font_size = 28
+		name_tag_label.outline_size = 8
+		name_tag_label.position = Vector3(0, 1.92, 0)
+		name_tag_label.modulate = GameManager.get_player_color(player_id).lightened(0.28)
+		_refresh_online_nametag()
+		add_child(name_tag_label)
+		NetworkManager.lobby_updated.connect(_refresh_online_nametag)
+
+func _refresh_online_nametag() -> void:
+	if not is_instance_valid(name_tag_label) or not is_instance_valid(NetworkManager):
+		return
+	var pid := NetworkManager.get_peer_for_slot(player_id)
+	name_tag_label.text = str(NetworkManager.peer_names.get(pid, "P%d" % player_id))
+
+func is_local_controlled() -> bool:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_online:
+		return true
+	return NetworkManager.is_slot_local(player_id)
+
+func _get_input_prefix() -> String:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		return "p1_"
+	return "p%d_" % player_id
 
 func _apply_player_identity() -> void:
 	var idx = clampi(player_id - 1, 0, 3)
@@ -188,6 +226,24 @@ func _apply_player_identity() -> void:
 func _physics_process(delta: float) -> void:
 	if _dash_cooldown > 0.0:
 		_dash_cooldown -= delta
+	if _ping_cooldown > 0.0:
+		_ping_cooldown -= delta
+	if _haste_timer > 0.0:
+		_haste_timer -= delta
+
+	# Remote online player: smoothly interpolate replicated state and animate
+	if not is_local_controlled():
+		if _has_remote_state:
+			if global_position.distance_to(_remote_target_pos) > 4.5:
+				global_position = _remote_target_pos
+			else:
+				global_position = global_position.lerp(_remote_target_pos, minf(1.0, 18.0 * delta))
+			velocity = _remote_target_vel
+			if current_health > 0:
+				mesh_root.rotation.y = lerp_angle(mesh_root.rotation.y, _remote_target_yaw, 16.0 * delta)
+		_update_animation(delta)
+		prompt_label.visible = false
+		return
 
 	# Apply gravity
 	if not is_on_floor():
@@ -196,14 +252,21 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 
 	if current_health <= 0:
+		var downed_prefix := _get_input_prefix()
+		if InputMap.has_action(downed_prefix + "ping") and Input.is_action_just_pressed(downed_prefix + "ping"):
+			trigger_coop_ping()
 		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 		velocity.z = move_toward(velocity.z, 0.0, friction * delta)
 		move_and_slide()
+		_broadcast_local_motion(delta)
 		return
 
 	# Chasm fall safety: damage 1 HP and return to latest checkpoint
 	if global_position.y < -5.5:
-		take_damage(1)
+		if not is_instance_valid(NetworkManager) or not NetworkManager.is_online or NetworkManager.is_host:
+			take_damage(1)
+		else:
+			_rpc_request_chasm_damage.rpc_id(1)
 		if current_health > 0:
 			velocity = Vector3.ZERO
 			var respawn_pos := Vector3(0.0, 0.4, 4.0)
@@ -227,6 +290,29 @@ func _physics_process(delta: float) -> void:
 	_handle_push_collisions()
 	_update_animation(delta)
 	_update_interact_prompt()
+	_broadcast_local_motion(delta)
+
+func _broadcast_local_motion(delta: float) -> void:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_online:
+		return
+	_net_sync_timer += delta
+	if _net_sync_timer >= 0.033:
+		_net_sync_timer = 0.0
+		_rpc_sync_motion.rpc(global_position, velocity, mesh_root.rotation.y)
+
+@rpc("any_peer", "unreliable_ordered")
+func _rpc_sync_motion(pos: Vector3, vel: Vector3, yaw: float) -> void:
+	if is_local_controlled():
+		return
+	_remote_target_pos = pos
+	_remote_target_vel = vel
+	_remote_target_yaw = yaw
+	_has_remote_state = true
+
+@rpc("any_peer", "reliable")
+func _rpc_request_chasm_damage() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host:
+		take_damage(1)
 
 func _handle_push_collisions() -> void:
 	for i in get_slide_collision_count():
@@ -240,7 +326,7 @@ func _handle_push_collisions() -> void:
 
 func _handle_movement(delta: float) -> void:
 	var input_dir: Vector2 = Vector2.ZERO
-	var prefix = "p%d_" % player_id
+	var prefix = _get_input_prefix()
 
 	if InputMap.has_action(prefix + "up"):
 		input_dir.y -= Input.get_action_strength(prefix + "up")
@@ -271,8 +357,9 @@ func _handle_movement(delta: float) -> void:
 	var move_dir = (cam_right * input_dir.x + cam_forward * -input_dir.y).normalized()
 
 	if move_dir.length() > 0.05:
-		velocity.x = move_toward(velocity.x, move_dir.x * speed, acceleration * delta)
-		velocity.z = move_toward(velocity.z, move_dir.z * speed, acceleration * delta)
+		var active_speed := speed * (1.24 if _haste_timer > 0.0 else 1.0)
+		velocity.x = move_toward(velocity.x, move_dir.x * active_speed, acceleration * delta)
+		velocity.z = move_toward(velocity.z, move_dir.z * active_speed, acceleration * delta)
 
 		# Rotate character towards movement direction smoothly
 		var target_rotation_y = atan2(move_dir.x, move_dir.z)
@@ -286,7 +373,7 @@ func _update_animation(delta: float) -> void:
 		return
 
 	var horizontal_speed = Vector2(velocity.x, velocity.z).length()
-	var is_moving = horizontal_speed > 0.2 and is_on_floor()
+	var is_moving = horizontal_speed > 0.2 and (is_on_floor() or not is_local_controlled())
 
 	if is_moving:
 		# Walking cycle: frequency proportional to speed
@@ -372,13 +459,115 @@ func _update_animation(delta: float) -> void:
 				arm_r.rotation.z = lerp_angle(arm_r.rotation.z, deg_to_rad(8.0) - sin(idle_cycle) * 0.02, 8.0 * delta)
 
 func _handle_input() -> void:
-	var prefix = "p%d_" % player_id
+	var prefix = _get_input_prefix()
 	if InputMap.has_action(prefix + "interact") and Input.is_action_just_pressed(prefix + "interact"):
 		interact()
 	if InputMap.has_action(prefix + "action") and Input.is_action_just_pressed(prefix + "action"):
 		use_whip()
 	if InputMap.has_action(prefix + "dash") and Input.is_action_just_pressed(prefix + "dash"):
 		use_dash()
+	if InputMap.has_action(prefix + "ping") and Input.is_action_just_pressed(prefix + "ping"):
+		trigger_coop_ping()
+
+func trigger_coop_ping() -> void:
+	if _ping_cooldown > 0.0:
+		return
+	_ping_cooldown = 0.65
+
+	var ping_pos := global_position
+	var label_txt := "📍 P%d: Over Here!" % player_id
+	var p_tag := "P%d" % player_id
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		var pid := NetworkManager.get_peer_for_slot(player_id)
+		p_tag = str(NetworkManager.peer_names.get(pid, p_tag))
+
+	if current_health <= 0:
+		ping_pos = global_position + Vector3(0.0, 0.05, 0.0)
+		label_txt = "🆘 %s: Revive Me!" % p_tag
+	else:
+		var forward_dir := Vector3(mesh_root.global_basis.z.x, 0.0, mesh_root.global_basis.z.z)
+		if forward_dir.length_squared() < 0.001:
+			forward_dir = Vector3.FORWARD
+		forward_dir = forward_dir.normalized()
+
+		var focus_target: Node3D = current_interactable
+		if not is_instance_valid(focus_target):
+			var space_state := get_world_3d().direct_space_state
+			if space_state != null:
+				var rq := PhysicsRayQueryParameters3D.create(
+					global_position + Vector3(0.0, 0.85, 0.0),
+					global_position + Vector3(0.0, 0.85, 0.0) + forward_dir * 6.5,
+					5
+				)
+				rq.collide_with_areas = true
+				rq.exclude = [get_rid()]
+				var r_hit := space_state.intersect_ray(rq)
+				if not r_hit.is_empty():
+					var col_obj = r_hit.collider
+					focus_target = col_obj.get_parent() if col_obj is Area3D else col_obj
+					ping_pos = Vector3(r_hit.position.x, global_position.y, r_hit.position.z)
+				else:
+					ping_pos = global_position + forward_dir * 2.2
+		else:
+			ping_pos = focus_target.global_position
+
+		if is_instance_valid(focus_target):
+			if focus_target is Player and focus_target.current_health <= 0:
+				label_txt = "🆘 %s: Revive Ally!" % p_tag
+			elif focus_target is PressurePlate or focus_target.is_in_group("pressure_plate"):
+				label_txt = "📍 %s: Stand on Seal!" % p_tag
+			elif focus_target is WallLever:
+				label_txt = "📍 %s: Pull Lever!" % p_tag
+			elif focus_target is MirrorPillar:
+				label_txt = "📍 %s: Rotate Mirror!" % p_tag
+			elif focus_target is Brazier:
+				label_txt = "🔥 %s: Light Brazier!" % p_tag
+			elif focus_target is PushableBlock or focus_target.is_in_group("pushable"):
+				label_txt = "🪨 %s: Move Block!" % p_tag
+			elif focus_target.is_in_group("carryable"):
+				label_txt = "✨ %s: Grab Relic!" % p_tag
+			elif focus_target.has_method("get_interact_prompt"):
+				var pr := str(focus_target.get_interact_prompt())
+				label_txt = ("📍 %s: %s!" % [p_tag, pr]) if not pr.is_empty() else ("📍 %s: Look Here!" % p_tag)
+			else:
+				label_txt = "📍 %s: Over Here!" % p_tag
+		else:
+			label_txt = "📍 %s: Over Here!" % p_tag
+
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		_rpc_spawn_ping.rpc(ping_pos, label_txt)
+	else:
+		_spawn_local_ping(ping_pos, label_txt)
+
+@rpc("any_peer", "call_local", "reliable")
+func _rpc_spawn_ping(world_pos: Vector3, label_txt: String) -> void:
+	_spawn_local_ping(world_pos, label_txt)
+
+func _spawn_local_ping(world_pos: Vector3, label_txt: String) -> void:
+	if is_instance_valid(get_parent()):
+		var col := Color(1.0, 0.30, 0.30) if current_health <= 0 else GameManager.get_player_color(player_id)
+		COOP_PING_BEACON.spawn(get_parent(), world_pos, col, label_txt)
+
+func grant_speed_boost(duration: float = 4.0) -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_haste.rpc(duration)
+	_apply_speed_boost(duration)
+
+@rpc("authority", "reliable")
+func _rpc_sync_haste(duration: float) -> void:
+	_apply_speed_boost(duration)
+
+func _apply_speed_boost(duration: float) -> void:
+	_haste_timer = maxf(_haste_timer, duration)
+	if is_instance_valid(hurt_light):
+		hurt_light.light_color = Color(1.0, 0.88, 0.25)
+		hurt_light.light_energy = 2.6
+		var tw := create_tween()
+		tw.tween_property(hurt_light, "light_energy", 0.0, 0.45)
+		tw.chain().tween_callback(func():
+			if is_instance_valid(hurt_light):
+				hurt_light.light_color = Color(1.0, 0.15, 0.15)
+		)
 
 func use_dash() -> void:
 	if is_dashing or is_staggering or _dash_cooldown > 0.0 or current_health <= 0:
@@ -387,48 +576,46 @@ func use_dash() -> void:
 	if forward_dir.length_squared() < 0.001:
 		forward_dir = Vector3.FORWARD
 	_dash_dir = forward_dir.normalized()
+	_play_dash_fx()
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		_rpc_remote_dash.rpc(_dash_dir)
+
+func _play_dash_fx() -> void:
 	is_dashing = true
 	_dash_timer = 0.18
 	_dash_cooldown = 0.65
-
 	if is_instance_valid(get_parent()):
 		DUST_PUFF.spawn(get_parent(), global_position, 4, 0.9)
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"footstep", global_position, 1.15, 1.30, -4.0, 18.0, 4.0)
-
 	var roll_tw := create_tween()
 	roll_tw.tween_property(torso, "rotation:x", deg_to_rad(32.0), 0.08)
 	roll_tw.tween_property(torso, "rotation:x", 0.0, 0.12)
 
+@rpc("any_peer", "reliable")
+func _rpc_remote_dash(dir: Vector3) -> void:
+	if is_local_controlled():
+		return
+	_dash_dir = dir
+	_play_dash_fx()
+
 func use_whip() -> void:
 	if is_whipping:
 		return
-
-	is_whipping = true
-	if is_instance_valid(AudioManager):
-		AudioManager.play_sfx_3d(&"whip_crack", global_position, 0.94, 1.08, -2.0, 22.0, 5.0)
-	# Whip arm animation: snap right arm forward
-	var tween = create_tween()
-	tween.tween_property(arm_r, "rotation:x", deg_to_rad(-105.0), 0.08)
-	tween.tween_property(arm_r, "rotation:x", deg_to_rad(0.0), 0.16)
-	tween.finished.connect(func(): is_whipping = false)
-
-	# Spawn whip lash effect
-	var whip = WHIP_SCENE.instantiate() as WhipEffect
-	get_parent().add_child(whip)
 
 	var start_pt = global_position + Vector3(0, 0.95, 0)
 	var forward_dir = mesh_root.global_transform.basis.z.normalized()
 	var max_reach: float = 4.5
 	var target_pt = start_pt + forward_dir * max_reach
 
-	# Perform 3D raycast using cached query
 	var space_state = get_world_3d().direct_space_state
 	_whip_ray_query.from = start_pt
 	_whip_ray_query.to = target_pt
 
 	var result = space_state.intersect_ray(_whip_ray_query)
+	var hit_surface := false
 	if result:
+		hit_surface = true
 		target_pt = result.position
 		var hit_collider = result.collider
 		var target_obj = hit_collider.get_parent() if hit_collider is Area3D else hit_collider
@@ -438,7 +625,50 @@ func use_whip() -> void:
 		elif target_obj.has_method("interact") and not (target_obj is PushableBlock or target_obj.is_in_group("pushable")):
 			target_obj.interact(self)
 
+	_play_whip_visuals(start_pt, target_pt, hit_surface)
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		_rpc_remote_whip.rpc(start_pt, target_pt, hit_surface)
+
+func _play_whip_visuals(start_pt: Vector3, target_pt: Vector3, hit_surface: bool = false) -> void:
+	is_whipping = true
+	if is_instance_valid(AudioManager):
+		AudioManager.play_sfx_3d(&"whip_crack", global_position, 0.94, 1.08, -2.0, 22.0, 5.0)
+	var tween = create_tween()
+	tween.tween_property(arm_r, "rotation:x", deg_to_rad(-105.0), 0.08)
+	tween.tween_property(arm_r, "rotation:x", deg_to_rad(0.0), 0.16)
+	tween.finished.connect(func(): is_whipping = false)
+
+	var whip = WHIP_SCENE.instantiate() as WhipEffect
+	get_parent().add_child(whip)
 	whip.lash(start_pt, target_pt, 0.22)
+	if hit_surface and is_instance_valid(get_parent()):
+		_spawn_whip_sparks(get_parent(), target_pt)
+
+func _spawn_whip_sparks(parent_node: Node, impact_pos: Vector3) -> void:
+	var spark_mat := StandardMaterial3D.new()
+	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	spark_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	spark_mat.albedo_color = Color(1.0, 0.85, 0.35, 0.95)
+	var spark_mesh := BoxMesh.new()
+	spark_mesh.size = Vector3(0.05, 0.05, 0.05)
+	spark_mesh.material = spark_mat
+	for i in range(5):
+		var sp := MeshInstance3D.new()
+		sp.mesh = spark_mesh
+		parent_node.add_child(sp)
+		sp.global_position = impact_pos
+		var vel := Vector3(randf_range(-1.2, 1.2), randf_range(0.5, 1.4), randf_range(-1.2, 1.2))
+		var tw := sp.create_tween().set_parallel(true)
+		tw.tween_property(sp, "global_position", impact_pos + vel * 0.28, 0.20).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(sp, "scale", Vector3.ZERO, 0.20)
+		tw.chain().tween_callback(sp.queue_free)
+
+@rpc("any_peer", "reliable")
+func _rpc_remote_whip(start_pt: Vector3, target_pt: Vector3, hit_surface: bool = false) -> void:
+	if is_local_controlled():
+		return
+	_play_whip_visuals(start_pt, target_pt, hit_surface)
 
 func _can_interact_while_carrying(target: Node3D) -> bool:
 	if not is_instance_valid(target) or target == carried_item:
@@ -487,6 +717,18 @@ func interact(by_player: Player = null) -> void:
 		interacted.emit()
 
 func pick_up_item(item: Node3D) -> void:
+	if not is_instance_valid(item):
+		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		if not NetworkManager.is_host:
+			_rpc_request_pickup.rpc_id(1, get_tree().current_scene.get_path_to(item))
+			return
+		_rpc_sync_pickup.rpc(get_tree().current_scene.get_path_to(item))
+	_do_pick_up_item(item)
+
+func _do_pick_up_item(item: Node3D) -> void:
+	if not is_instance_valid(item) or carried_item != null:
+		return
 	carried_item = item
 	if item.has_method("on_picked_up"):
 		item.on_picked_up(self)
@@ -494,15 +736,50 @@ func pick_up_item(item: Node3D) -> void:
 	item.position = Vector3.ZERO
 	item.rotation = Vector3.ZERO
 
+@rpc("any_peer", "reliable")
+func _rpc_request_pickup(rel_item_path: NodePath) -> void:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_host:
+		return
+	var item := get_tree().current_scene.get_node_or_null(rel_item_path) as Node3D
+	if is_instance_valid(item) and carried_item == null:
+		pick_up_item(item)
+
+@rpc("authority", "reliable")
+func _rpc_sync_pickup(rel_item_path: NodePath) -> void:
+	var item := get_tree().current_scene.get_node_or_null(rel_item_path) as Node3D
+	if is_instance_valid(item):
+		_do_pick_up_item(item)
+
 func drop_item() -> void:
+	if carried_item == null:
+		return
+	var drop_pos := _find_safe_drop_position()
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		if not NetworkManager.is_host:
+			_rpc_request_drop.rpc_id(1, drop_pos)
+			return
+		_rpc_sync_drop.rpc(drop_pos)
+	_do_drop_item(drop_pos)
+
+func _do_drop_item(drop_pos: Vector3) -> void:
 	if carried_item == null:
 		return
 	var item = carried_item
 	carried_item = null
 	item.reparent(get_parent())
-	item.global_position = _find_safe_drop_position()
+	item.global_position = drop_pos
 	if item.has_method("on_dropped"):
 		item.on_dropped(self)
+
+@rpc("any_peer", "reliable")
+func _rpc_request_drop(drop_pos: Vector3) -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host and carried_item != null:
+		_rpc_sync_drop.rpc(drop_pos)
+		_do_drop_item(drop_pos)
+
+@rpc("authority", "reliable")
+func _rpc_sync_drop(drop_pos: Vector3) -> void:
+	_do_drop_item(drop_pos)
 
 func _find_safe_drop_position() -> Vector3:
 	var forward := Vector3(mesh_root.global_basis.z.x, 0.0, mesh_root.global_basis.z.z)
@@ -550,9 +827,17 @@ func _find_safe_drop_position() -> Vector3:
 	return candidate
 
 func heal(amount: int = 1) -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 	if current_health <= 0 or current_health >= max_health:
 		return
-	current_health = mini(max_health, current_health + amount)
+	var next_h := mini(max_health, current_health + amount)
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_health_event.rpc(next_h, 1, global_position)
+	_apply_heal(next_h)
+
+func _apply_heal(next_h: int) -> void:
+	current_health = next_h
 	health_changed.emit(current_health)
 	if is_instance_valid(hurt_light):
 		hurt_light.light_color = Color(0.25, 1.0, 0.45)
@@ -565,34 +850,41 @@ func heal(amount: int = 1) -> void:
 		)
 
 func take_damage(amount: int = 1) -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 	if is_invulnerable or is_dashing or current_health <= 0:
 		return
-	current_health -= amount
+	var next_h := maxi(0, current_health - amount)
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_health_event.rpc(next_h, 0, global_position)
+	_apply_damage_to(next_h)
+
+func _apply_damage_to(next_h: int) -> void:
+	current_health = next_h
 	health_changed.emit(current_health)
 
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"player_hurt", global_position, 0.94, 1.06, 0.0, 25.0, 5.5)
 
-	if is_instance_valid(SettingsManager) and SettingsManager.controller_rumble:
-		Input.start_joy_vibration(player_id - 1, 0.4, 0.7, 0.22)
-
-	if is_instance_valid(_hud) and _hud.has_method("flash_damage_vignette"):
-		_hud.flash_damage_vignette()
-
-	for cam in _coop_cameras:
-		if is_instance_valid(cam) and cam.has_method("trigger_shake"):
-			cam.trigger_shake(0.12, 0.14)
+	if is_local_controlled():
+		if is_instance_valid(SettingsManager) and SettingsManager.controller_rumble:
+			Input.start_joy_vibration(0 if (is_instance_valid(NetworkManager) and NetworkManager.is_online) else (player_id - 1), 0.4, 0.7, 0.22)
+		if is_instance_valid(_hud) and _hud.has_method("flash_damage_vignette"):
+			_hud.flash_damage_vignette()
+		for cam in _coop_cameras:
+			if is_instance_valid(cam) and cam.has_method("trigger_shake"):
+				cam.trigger_shake(0.12, 0.14)
 
 	if current_health <= 0:
 		current_health = 0
 		_die()
 		return
 
-	# Brief hit-stop pulse (40ms real time)
-	Engine.time_scale = 0.25
-	get_tree().create_timer(0.04, true, false, true).timeout.connect(func():
-		Engine.time_scale = 1.0
-	)
+	if not (is_instance_valid(NetworkManager) and NetworkManager.is_online):
+		Engine.time_scale = 0.25
+		get_tree().create_timer(0.04, true, false, true).timeout.connect(func():
+			Engine.time_scale = 1.0
+		)
 
 	# Start stagger & invulnerability
 	is_invulnerable = true
@@ -665,6 +957,9 @@ func _die() -> void:
 func revive_in_place() -> void:
 	if current_health > 0:
 		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		_rpc_request_revive.rpc_id(1)
+		return
 	respawn_at(global_position + Vector3(0.0, 0.1, 0.0))
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"scarab_pickup", global_position, 0.90, 0.96, -3.0, 22.0, 5.0)
@@ -678,7 +973,28 @@ func revive_in_place() -> void:
 				hurt_light.light_color = Color(1.0, 0.15, 0.15)
 		)
 
+@rpc("any_peer", "reliable")
+func _rpc_request_revive() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host and current_health <= 0:
+		revive_in_place()
+
+@rpc("authority", "reliable")
+func _rpc_sync_health_event(next_h: int, kind: int, pos: Vector3) -> void:
+	if kind == 0:
+		_apply_damage_to(next_h)
+	elif kind == 1:
+		_apply_heal(next_h)
+	elif kind == 2:
+		_do_respawn_at(pos)
+
 func respawn_at(pos: Vector3) -> void:
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_health_event.rpc(maxi(1, max_health - 1), 2, pos)
+	_do_respawn_at(pos)
+
+func _do_respawn_at(pos: Vector3) -> void:
 	if not is_instance_valid(self) or not is_inside_tree():
 		return
 	if is_instance_valid(revive_area):
@@ -746,7 +1062,8 @@ func _update_interact_prompt() -> void:
 	if target != _last_prompt_target or action_text != _last_prompt_text:
 		_last_prompt_target = target
 		_last_prompt_text = action_text
-		var key_hint := "[E]" if player_id == 1 else ("[Enter]" if player_id == 2 else "(A)")
+		var online_mode := is_instance_valid(NetworkManager) and NetworkManager.is_online
+		var key_hint := "[E]" if (player_id == 1 or online_mode) else ("[Enter]" if player_id == 2 else "(A)")
 		prompt_label.text = "%s %s" % [key_hint, action_text]
 
 	prompt_label.global_position = target.global_position + Vector3(0, 1.65, 0)

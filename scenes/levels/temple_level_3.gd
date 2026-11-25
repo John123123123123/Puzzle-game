@@ -120,24 +120,36 @@ func _refresh_objective() -> void:
 	if is_escaping or not is_instance_valid(hud):
 		return
 	var lvl_num := GameManager.current_level_index if is_instance_valid(GameManager) else 4
-	var p_cnt := maxi(1, players.size())
 	if is_instance_valid(gate_room5) and gate_room5.is_open:
 		hud.set_objective("Level %d (FINALE): Claim the mythical Golden Idol of Ra!" % lvl_num)
 	elif is_instance_valid(gate_room4) and gate_room4.is_open:
-		hud.set_objective("Level %d (FINALE): Survive Anubis Judgment Hall — pull both levers & hold %d Seal(s)!" % [lvl_num, p_cnt])
+		hud.set_objective("Level %d (FINALE): Survive Anubis Judgment Hall and pull both levers!" % lvl_num)
 	elif is_instance_valid(gate_room3) and gate_room3.is_open:
 		var sun_txt := "1/1" if (is_instance_valid(trial_receiver) and trial_receiver.is_powered) else "0/1"
-		hud.set_objective("Level %d (FINALE): Pharaoh's Trial — Solar (%s), Braziers (%d/2) & %d Seal(s)!" % [lvl_num, sun_txt, _trial_braziers_lit, p_cnt])
+		hud.set_objective("Level %d (FINALE): Pharaoh's Trial — Charge Solar Crystal (%s) & Light Braziers (%d/2)!" % [lvl_num, sun_txt, _trial_braziers_lit])
 	elif is_instance_valid(gate_room2) and gate_room2.is_open:
-		hud.set_objective("Level %d (FINALE): Breach the poison dart corridor — pull the lever & hold %d Seal(s)!" % [lvl_num, p_cnt])
+		hud.set_objective("Level %d (FINALE): Push the crate through the dart corridor onto the plate & pull the lever!" % lvl_num)
 	else:
-		hud.set_objective("Level %d (FINALE): Unseal the %d outer offering plate(s) to begin the final descent!" % [lvl_num, p_cnt])
+		hud.set_objective("Level %d (FINALE): Push both stone crates onto the two offering plates to begin the descent!" % lvl_num)
 
 # ---------------------------------------------------------------------------
 # Golden Idol grab sequence
 # ---------------------------------------------------------------------------
 
 func _on_golden_idol_taken(_by_player: Player) -> void:
+	if is_escaping:
+		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		if NetworkManager.is_host:
+			_rpc_start_escape.rpc()
+		return
+	_begin_escape_sequence()
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_start_escape() -> void:
+	_begin_escape_sequence()
+
+func _begin_escape_sequence() -> void:
 	if is_escaping:
 		return
 	is_escaping = true
@@ -198,6 +210,8 @@ func _on_escape_zone_exited(body: Node3D) -> void:
 func _check_all_players_escaped() -> void:
 	if level_complete:
 		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 
 	var living_count: int = 0
 	var safe_count: int = 0
@@ -215,6 +229,16 @@ func _check_all_players_escaped() -> void:
 	if safe_count < living_count:
 		return
 
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_complete_finale.rpc()
+	else:
+		level_complete = true
+		_show_level_complete()
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_complete_finale() -> void:
+	if level_complete:
+		return
 	level_complete = true
 	_show_level_complete()
 

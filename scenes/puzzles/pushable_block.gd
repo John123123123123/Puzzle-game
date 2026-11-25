@@ -27,9 +27,21 @@ func get_interact_prompt() -> String:
 func push(direction: Vector3, force: float = 3.0) -> void:
 	direction.y = 0.0
 	if direction.length_squared() > 0.001:
+		if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+			_rpc_request_push.rpc_id(1, direction.normalized(), force)
 		push_velocity = direction.normalized() * min(force, push_speed)
 
+@rpc("any_peer", "unreliable_ordered")
+func _rpc_request_push(dir: Vector3, force: float) -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host and grabbed_by == null:
+		push_velocity = dir * min(force, push_speed)
+
 func interact(player: Player) -> void:
+	if not is_instance_valid(player):
+		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		_rpc_request_grab_toggle.rpc_id(1, player.player_id)
+		return
 	if grabbed_by == null:
 		grab(player)
 	elif grabbed_by == player:
@@ -38,6 +50,9 @@ func interact(player: Player) -> void:
 func on_whipped(player: Player) -> void:
 	if is_instance_valid(grabbed_by) or not is_instance_valid(player):
 		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		_rpc_request_whip_pull.rpc_id(1, player.global_position)
+		return
 	var pull_dir := player.global_position - global_position
 	pull_dir.y = 0.0
 	if pull_dir.length_squared() > 0.05:
@@ -45,11 +60,35 @@ func on_whipped(player: Player) -> void:
 		if is_instance_valid(get_parent()):
 			DUST_PUFF.spawn(get_parent(), global_position - Vector3(0, 0.3, 0), 3, 0.95)
 
+@rpc("any_peer", "reliable")
+func _rpc_request_whip_pull(from_pos: Vector3) -> void:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_host or is_instance_valid(grabbed_by):
+		return
+	var pull_dir := from_pos - global_position
+	pull_dir.y = 0.0
+	if pull_dir.length_squared() > 0.05:
+		push_velocity = pull_dir.normalized() * 7.2
+
+@rpc("any_peer", "reliable")
+func _rpc_request_grab_toggle(pid: int) -> void:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_host:
+		return
+	var lvl := get_tree().current_scene
+	if not is_instance_valid(lvl) or not ("players" in lvl) or not lvl.players.has(pid):
+		return
+	var p: Player = lvl.players[pid]
+	if grabbed_by == null:
+		grab(p)
+	elif grabbed_by == p:
+		release()
+
 func grab(player: Player) -> void:
 	grabbed_by = player
 	if is_instance_valid(player):
 		player.grabbed_block = self
 		add_collision_exception_with(player)
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_grab.rpc(player.player_id if is_instance_valid(player) else 0)
 
 func release() -> void:
 	if is_instance_valid(grabbed_by):
@@ -57,6 +96,24 @@ func release() -> void:
 		if grabbed_by.grabbed_block == self:
 			grabbed_by.grabbed_block = null
 	grabbed_by = null
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_grab.rpc(0)
+
+@rpc("authority", "reliable")
+func _rpc_sync_grab(pid: int) -> void:
+	if pid == 0:
+		if is_instance_valid(grabbed_by):
+			remove_collision_exception_with(grabbed_by)
+			if grabbed_by.grabbed_block == self:
+				grabbed_by.grabbed_block = null
+		grabbed_by = null
+		return
+	var lvl := get_tree().current_scene
+	if is_instance_valid(lvl) and ("players" in lvl) and lvl.players.has(pid):
+		var p: Player = lvl.players[pid]
+		grabbed_by = p
+		p.grabbed_block = self
+		add_collision_exception_with(p)
 
 func _physics_process(delta: float) -> void:
 	# If grabbed by a player, lift slightly and carry the crate smoothly in front of them

@@ -31,8 +31,25 @@ func on_whipped(_player: Player) -> void:
 func toggle() -> void:
 	if is_one_shot and is_on:
 		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		_rpc_request_toggle.rpc_id(1)
+		return
+	_apply_toggle_state(not is_on)
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_toggle.rpc(is_on)
 
-	is_on = !is_on
+@rpc("any_peer", "reliable")
+func _rpc_request_toggle() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host:
+		toggle()
+
+@rpc("authority", "reliable")
+func _rpc_sync_toggle(new_state: bool) -> void:
+	if is_on != new_state:
+		_apply_toggle_state(new_state)
+
+func _apply_toggle_state(new_state: bool) -> void:
+	is_on = new_state
 	_update_visuals(true)
 	toggled.emit(is_on)
 

@@ -5,12 +5,16 @@ signal phase_shifted(new_phase: int)
 
 @onready var crystal_pivot: Node3D = $CrystalPivot
 @onready var crystal_mesh: MeshInstance3D = $CrystalPivot/CrystalMesh
+@onready var crystal_lower: MeshInstance3D = get_node_or_null("CrystalPivot/CrystalMesh/CrystalLower")
 @onready var ring_mesh: MeshInstance3D = $CrystalPivot/OrbitRing
+@onready var inner_ring_mesh: MeshInstance3D = get_node_or_null("CrystalPivot/InnerRing")
+@onready var shaft_mesh: MeshInstance3D = get_node_or_null("ObeliskShaft")
 @onready var beacon_light: OmniLight3D = $BeaconLight
 
 var current_phase: int = 0 # 0 = Solar Gold, 1 = Lunar Cyan
 var _crystal_mat: StandardMaterial3D = null
 var _ring_mat: StandardMaterial3D = null
+var _shaft_mat: ShaderMaterial = null
 var _cooldown: float = 0.0
 var _hover_t: float = 0.0
 var shift_audio: AudioStreamPlayer3D = null
@@ -30,6 +34,14 @@ func _ready() -> void:
 		if bm:
 			_crystal_mat = bm.duplicate() as StandardMaterial3D
 			crystal_mesh.material_override = _crystal_mat
+			if is_instance_valid(crystal_lower):
+				crystal_lower.material_override = _crystal_mat
+
+	if is_instance_valid(shaft_mesh):
+		var sm = shaft_mesh.get_active_material(0) as ShaderMaterial
+		if sm:
+			_shaft_mat = sm.duplicate() as ShaderMaterial
+			shaft_mesh.material_override = _shaft_mat
 
 	if is_instance_valid(ring_mesh):
 		var rm = ring_mesh.get_active_material(0) as StandardMaterial3D
@@ -52,10 +64,13 @@ func _process(delta: float) -> void:
 	_hover_t += delta * 2.6
 	if is_instance_valid(crystal_pivot):
 		crystal_pivot.rotation.y += delta * 1.6
-		crystal_pivot.position.y = 1.65 + sin(_hover_t) * 0.07
+		crystal_pivot.position.y = 1.78 + sin(_hover_t) * 0.07
 	if is_instance_valid(ring_mesh):
 		ring_mesh.rotation.x = sin(_hover_t * 0.8) * 0.45
 		ring_mesh.rotation.z += delta * 1.2
+	if is_instance_valid(inner_ring_mesh):
+		inner_ring_mesh.rotation.y -= delta * 2.1
+		inner_ring_mesh.rotation.z = cos(_hover_t * 0.9) * 0.55
 
 func get_interact_prompt() -> String:
 	return "Shift to Moon Phase" if current_phase == 0 else "Shift to Sun Phase"
@@ -69,7 +84,24 @@ func on_whipped(_player: Player) -> void:
 func trigger_shift() -> void:
 	if _cooldown > 0.0:
 		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		_rpc_request_shift.rpc_id(1)
+		return
 	var next_phase = 1 - current_phase
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_shift.rpc(next_phase)
+	_apply_world_shift(next_phase)
+
+@rpc("any_peer", "reliable")
+func _rpc_request_shift() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_host:
+		trigger_shift()
+
+@rpc("authority", "reliable")
+func _rpc_sync_shift(next_phase: int) -> void:
+	_apply_world_shift(next_phase)
+
+func _apply_world_shift(next_phase: int) -> void:
 
 	if is_instance_valid(shift_audio):
 		shift_audio.stream = solar_sound if next_phase == 0 else lunar_sound
@@ -103,6 +135,8 @@ func _apply_visual_phase(animate: bool) -> void:
 	if _ring_mat:
 		_ring_mat.albedo_color = col
 		_ring_mat.emission = col
+	if _shaft_mat:
+		_shaft_mat.set_shader_parameter("phase_glow", col)
 	if is_instance_valid(beacon_light):
 		beacon_light.light_color = col
 		if animate:

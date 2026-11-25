@@ -34,6 +34,20 @@ func _process(delta: float) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if is_collected or not (body is Player):
 		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_collect.rpc()
+	else:
+		_do_collect()
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_collect() -> void:
+	_do_collect()
+
+func _do_collect() -> void:
+	if is_collected:
+		return
 	is_collected = true
 	collected.emit(self)
 

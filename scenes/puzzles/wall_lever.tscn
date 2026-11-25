@@ -1,68 +1,117 @@
-[gd_scene load_steps=14 format=3 uid="uid://ci1v7j8wha1w5"]
+[gd_scene format=3 uid="uid://ci1v7j8wha1w5"]
 
 [ext_resource type="Script" path="res://scenes/puzzles/wall_lever.gd" id="1_lever"]
+[ext_resource type="Shader" path="res://shaders/ancient_pillar.gdshader" id="2_stone_shader"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
 size = Vector3(1.6, 1.8, 1.6)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_base"]
-albedo_color = Color(0.38, 0.34, 0.28, 1)
-roughness = 0.85
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_escutcheon"]
+render_priority = 0
+shader = ExtResource("2_stone_shader")
+shader_parameter/stone_light = Color(0.52, 0.44, 0.34, 1)
+shader_parameter/stone_dark = Color(0.28, 0.22, 0.16, 1)
+shader_parameter/groove_color = Color(0.14, 0.10, 0.07, 1)
+shader_parameter/gold_color = Color(0.90, 0.72, 0.25, 1)
+shader_parameter/lapis_color = Color(0.16, 0.36, 0.50, 1)
+shader_parameter/flute_count = 8.0
+shader_parameter/roughness_base = 0.82
 
 [sub_resource type="BoxMesh" id="BoxMesh_base"]
-material = SubResource("StandardMaterial3D_base")
-size = Vector3(0.48, 0.75, 0.16)
+material = SubResource("ShaderMaterial_escutcheon")
+size = Vector3(0.54, 0.84, 0.15)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_iron"]
+albedo_color = Color(0.17, 0.16, 0.18, 1)
+metallic = 0.88
+roughness = 0.42
+
+[sub_resource type="BoxMesh" id="BoxMesh_housing"]
+material = SubResource("StandardMaterial3D_iron")
+size = Vector3(0.30, 0.56, 0.08)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_slot"]
-albedo_color = Color(0.14, 0.12, 0.11, 1)
-metallic = 0.7
-roughness = 0.6
+shading_mode = 0
+albedo_color = Color(0.04, 0.04, 0.05, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_slot"]
 material = SubResource("StandardMaterial3D_slot")
-size = Vector3(0.12, 0.52, 0.04)
+size = Vector3(0.09, 0.44, 0.05)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_axle"]
-albedo_color = Color(0.55, 0.42, 0.18, 1)
-metallic = 0.85
-roughness = 0.35
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bronze"]
+albedo_color = Color(0.88, 0.68, 0.24, 1)
+metallic = 0.92
+roughness = 0.24
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_axle"]
-material = SubResource("StandardMaterial3D_axle")
-top_radius = 0.05
-bottom_radius = 0.05
-height = 0.22
+material = SubResource("StandardMaterial3D_bronze")
+top_radius = 0.055
+bottom_radius = 0.055
+height = 0.28
+radial_segments = 12
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rod"]
-albedo_color = Color(0.25, 0.23, 0.22, 1)
-metallic = 0.85
-roughness = 0.3
+[sub_resource type="CylinderMesh" id="CylinderMesh_cog"]
+material = SubResource("StandardMaterial3D_bronze")
+top_radius = 0.14
+bottom_radius = 0.14
+height = 0.05
+radial_segments = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_tooth"]
+material = SubResource("StandardMaterial3D_bronze")
+size = Vector3(0.045, 0.33, 0.045)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_rivet"]
+material = SubResource("StandardMaterial3D_bronze")
+top_radius = 0.025
+bottom_radius = 0.025
+height = 0.04
+radial_segments = 8
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_rod"]
-material = SubResource("StandardMaterial3D_rod")
-top_radius = 0.035
-bottom_radius = 0.035
-height = 0.52
+material = SubResource("StandardMaterial3D_iron")
+top_radius = 0.028
+bottom_radius = 0.038
+height = 0.54
+radial_segments = 12
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_knob"]
-albedo_color = Color(0.85, 0.68, 0.25, 1)
-metallic = 0.9
-roughness = 0.2
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_leather"]
+albedo_color = Color(0.32, 0.18, 0.10, 1)
+roughness = 0.75
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_grip"]
+material = SubResource("StandardMaterial3D_leather")
+top_radius = 0.042
+bottom_radius = 0.038
+height = 0.18
+radial_segments = 12
 
 [sub_resource type="SphereMesh" id="SphereMesh_knob"]
-material = SubResource("StandardMaterial3D_knob")
-radius = 0.085
-height = 0.17
+material = SubResource("StandardMaterial3D_bronze")
+radius = 0.082
+height = 0.164
+
+[sub_resource type="TorusMesh" id="TorusMesh_bezel"]
+material = SubResource("StandardMaterial3D_bronze")
+inner_radius = 0.065
+outer_radius = 0.095
+rings = 14
+ring_segments = 8
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rune"]
 albedo_color = Color(0.95, 0.25, 0.15, 1)
+metallic = 0.25
+roughness = 0.15
 emission_enabled = true
 emission = Color(0.95, 0.25, 0.15, 1)
-emission_energy_multiplier = 2.0
+emission_energy_multiplier = 2.4
 
-[sub_resource type="BoxMesh" id="BoxMesh_rune"]
+[sub_resource type="SphereMesh" id="SphereMesh_gem"]
 material = SubResource("StandardMaterial3D_rune")
-size = Vector3(0.1, 0.1, 0.03)
+radius = 0.068
+height = 0.11
+radial_segments = 8
+rings = 4
 
 [node name="WallLever" type="Node3D" groups=["whip_target"]]
 script = ExtResource("1_lever")
@@ -76,34 +125,73 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0.4)
 shape = SubResource("BoxShape3D_interact")
 
 [node name="Base" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0.08)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48, 0.075)
 mesh = SubResource("BoxMesh_base")
 
+[node name="IronHousing" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0.075)
+mesh = SubResource("BoxMesh_housing")
+
 [node name="Slot" type="MeshInstance3D" parent="Base"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.085)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0.105)
 mesh = SubResource("BoxMesh_slot")
 
+[node name="BoltTL" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, -0.20, 0.34, 0.08)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="BoltTR" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.20, 0.34, 0.08)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="BoltBL" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, -0.20, -0.34, 0.08)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="BoltBR" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.20, -0.34, 0.08)
+mesh = SubResource("CylinderMesh_rivet")
+
 [node name="AxleBracket" type="MeshInstance3D" parent="Base"]
-transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, -0.13, 0.1)
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, -0.14, 0.115)
 mesh = SubResource("CylinderMesh_axle")
 
 [node name="HandlePivot" type="Node3D" parent="Base"]
-transform = Transform3D(1, 0, 0, 0, 0.961262, -0.275637, 0, 0.275637, 0.961262, 0, -0.13, 0.1)
+transform = Transform3D(1, 0, 0, 0, 0.961262, -0.275637, 0, 0.275637, 0.961262, 0, -0.14, 0.115)
+
+[node name="GearWheel" type="MeshInstance3D" parent="Base/HandlePivot"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_cog")
+
+[node name="GearTeethA" type="MeshInstance3D" parent="Base/HandlePivot"]
+mesh = SubResource("BoxMesh_tooth")
+
+[node name="GearTeethB" type="MeshInstance3D" parent="Base/HandlePivot"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
+mesh = SubResource("BoxMesh_tooth")
 
 [node name="Rod" type="MeshInstance3D" parent="Base/HandlePivot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.26, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.27, 0)
 mesh = SubResource("CylinderMesh_rod")
 
+[node name="LeatherGrip" type="MeshInstance3D" parent="Base/HandlePivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.40, 0)
+mesh = SubResource("CylinderMesh_grip")
+
 [node name="Knob" type="MeshInstance3D" parent="Base/HandlePivot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.52, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
 mesh = SubResource("SphereMesh_knob")
 
+[node name="GemBezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0.76, 0.155)
+mesh = SubResource("TorusMesh_bezel")
+
 [node name="RuneIndicator" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0.17)
-mesh = SubResource("BoxMesh_rune")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.76, 0.165)
+mesh = SubResource("SphereMesh_gem")
 
 [node name="LightIndicator" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0.26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.76, 0.28)
 light_color = Color(0.95, 0.25, 0.15, 1)
 light_energy = 0.6
-omni_range = 2.5
+omni_range = 2.6

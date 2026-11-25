@@ -111,25 +111,16 @@ func _evaluate_mirrors(_angle: float = 0.0) -> void:
 func _update_objective() -> void:
 	if not is_instance_valid(hud):
 		return
-	var p_cnt := maxi(1, players.size())
 	if is_instance_valid(prism_gate) and prism_gate.is_open:
 		hud.set_objective("Level 2: The Solar Prism is unlocked! Step into the portal ahead!")
 	elif is_instance_valid(sanctum_gate) and sanctum_gate.is_open:
-		if is_instance_valid(prism_receiver) and prism_receiver.is_powered:
-			hud.set_objective("Level 2: Prism charged! All %d explorers stand on the Prism Guardian Seals!" % p_cnt)
-		else:
-			hud.set_objective("Level 2: Weave the Solar Prism beam around the central pillar into the crystal!")
+		hud.set_objective("Level 2: Weave the Solar Prism beam around the central pillar into the crystal!")
 	elif is_instance_valid(pharaoh_gate) and pharaoh_gate.is_open:
 		var charged := 0
 		if is_instance_valid(receiver_west) and receiver_west.is_powered:
 			charged += 1
 		if is_instance_valid(receiver_east) and receiver_east.is_powered:
 			charged += 1
-		if charged >= 2:
-			hud.set_objective("Level 2: Twin crystals charged! All %d explorers step onto the Gallery Seals!" % p_cnt)
-		else:
-			hud.set_objective("Level 2: Align both twin sunbeams (%d/2) and hold %d Gallery Seal(s)!" % [charged, p_cnt])
-	elif is_instance_valid(sun_receiver) and sun_receiver.is_powered:
-		hud.set_objective("Level 2: Solar crystal charged! All %d explorers step onto the Sun Seals!" % p_cnt)
+		hud.set_objective("Level 2: Align both twin sunbeams (%d/2) in the Solar Gallery!" % charged)
 	else:
 		hud.set_objective("Level 2: Rotate the four golden mirrors to guide the sunbeam into the solar crystal!")

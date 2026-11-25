@@ -10,6 +10,7 @@ class_name FlameSpinner
 @export var damage: int = 1
 
 @onready var spinner_head: Node3D = $SpinnerHead
+@onready var core_light: OmniLight3D = get_node_or_null("SpinnerHead/CoreLight")
 @onready var arm_a: Node3D = $SpinnerHead/FlameArmA
 @onready var arm_b: Node3D = $SpinnerHead/FlameArmB
 @onready var area_a: Area3D = $SpinnerHead/FlameArmA/DamageArea
@@ -24,6 +25,7 @@ var _base_speed: float = 1.15
 var _effective_speed: float = 1.15
 var _quad_active: bool = false
 var _coop_enabled: bool = true
+var _pulse_t: float = 0.0
 
 func _ready() -> void:
 	add_to_group("flame_spinner")
@@ -100,8 +102,11 @@ func apply_coop_difficulty(player_count: int) -> void:
 func _physics_process(delta: float) -> void:
 	if not _coop_enabled:
 		return
+	_pulse_t += delta * 12.0
 	if is_instance_valid(spinner_head):
 		spinner_head.rotation.y += _effective_speed * delta
+	if is_instance_valid(core_light):
+		core_light.light_energy = 2.8 + sin(_pulse_t) * 0.32 + sin(_pulse_t * 2.1) * 0.14
 
 	_check_area(area_a)
 	if dual_sided:

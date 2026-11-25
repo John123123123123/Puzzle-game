@@ -1,39 +1,88 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/props/ancient_urn.gd" id="1_urn"]
+[ext_resource type="Shader" path="res://shaders/painted_amphora.gdshader" id="2_amphora_shader"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_urn"]
-height = 0.8
-radius = 0.35
+height = 0.88
+radius = 0.36
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_terracotta"]
-albedo_color = Color(0.68, 0.38, 0.22, 1)
-roughness = 0.82
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_amphora"]
+render_priority = 0
+shader = ExtResource("2_amphora_shader")
+shader_parameter/clay_light = Color(0.76, 0.42, 0.23, 1)
+shader_parameter/clay_dark = Color(0.45, 0.21, 0.10, 1)
+shader_parameter/paint_obsidian = Color(0.12, 0.10, 0.09, 1)
+shader_parameter/paint_gold = Color(0.94, 0.76, 0.26, 1)
+shader_parameter/paint_turquoise = Color(0.14, 0.58, 0.64, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold_trim"]
-albedo_color = Color(0.88, 0.68, 0.22, 1)
-metallic = 0.85
-roughness = 0.3
+albedo_color = Color(0.90, 0.72, 0.24, 1)
+metallic = 0.90
+roughness = 0.25
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_interior"]
+shading_mode = 0
+albedo_color = Color(0.05, 0.03, 0.02, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_foot"]
+material = SubResource("StandardMaterial3D_gold_trim")
+top_radius = 0.18
+bottom_radius = 0.24
+height = 0.09
+radial_segments = 16
 
 [sub_resource type="SphereMesh" id="SphereMesh_body"]
-material = SubResource("StandardMaterial3D_terracotta")
+material = SubResource("ShaderMaterial_amphora")
 radius = 0.35
-height = 0.65
+height = 0.68
+radial_segments = 24
+rings = 14
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_band"]
-material = SubResource("StandardMaterial3D_gold_trim")
-top_radius = 0.355
-bottom_radius = 0.355
-height = 0.06
+[sub_resource type="CylinderMesh" id="CylinderMesh_shoulder"]
+material = SubResource("ShaderMaterial_amphora")
+top_radius = 0.16
+bottom_radius = 0.29
+height = 0.22
+radial_segments = 20
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_neck"]
-material = SubResource("StandardMaterial3D_terracotta")
-top_radius = 0.22
-bottom_radius = 0.18
-height = 0.25
+material = SubResource("ShaderMaterial_amphora")
+top_radius = 0.19
+bottom_radius = 0.15
+height = 0.20
+radial_segments = 20
+
+[sub_resource type="TorusMesh" id="TorusMesh_collar"]
+material = SubResource("StandardMaterial3D_gold_trim")
+inner_radius = 0.145
+outer_radius = 0.182
+rings = 18
+ring_segments = 10
+
+[sub_resource type="TorusMesh" id="TorusMesh_lip"]
+material = SubResource("StandardMaterial3D_gold_trim")
+inner_radius = 0.155
+outer_radius = 0.215
+rings = 18
+ring_segments = 10
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_mouth"]
+material = SubResource("StandardMaterial3D_interior")
+top_radius = 0.155
+bottom_radius = 0.14
+height = 0.04
+radial_segments = 16
+
+[sub_resource type="TorusMesh" id="TorusMesh_handle"]
+material = SubResource("StandardMaterial3D_gold_trim")
+inner_radius = 0.095
+outer_radius = 0.125
+rings = 16
+ring_segments = 8
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
-radius = 0.75
+radius = 0.78
 
 [node name="AncientUrn" type="StaticBody3D"]
 collision_layer = 1
@@ -41,20 +90,44 @@ collision_mask = 6
 script = ExtResource("1_urn")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.44, 0)
 shape = SubResource("CylinderShape3D_urn")
 
+[node name="FootBase" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, 0)
+mesh = SubResource("CylinderMesh_foot")
+
 [node name="BodyMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0)
 mesh = SubResource("SphereMesh_body")
 
-[node name="GoldBand" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, 0)
-mesh = SubResource("CylinderMesh_band")
+[node name="ShoulderCone" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0)
+mesh = SubResource("CylinderMesh_shoulder")
 
 [node name="NeckMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.78, 0)
 mesh = SubResource("CylinderMesh_neck")
+
+[node name="GoldCollar" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.69, 0)
+mesh = SubResource("TorusMesh_collar")
+
+[node name="LipRim" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.88, 0)
+mesh = SubResource("TorusMesh_lip")
+
+[node name="MouthDark" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.875, 0)
+mesh = SubResource("CylinderMesh_mouth")
+
+[node name="HandleL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1.35, -4.37114e-08, -0.25, 0.63, 0)
+mesh = SubResource("TorusMesh_handle")
+
+[node name="HandleR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1.35, -4.37114e-08, 0.25, 0.63, 0)
+mesh = SubResource("TorusMesh_handle")
 
 [node name="InteractionArea" type="Area3D" parent="."]
 collision_layer = 4

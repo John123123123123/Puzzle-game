@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/pushable_block.gd" id="1_block"]
 [ext_resource type="Shader" path="res://shaders/puzzle_crate.gdshader" id="2_crate_shader"]
@@ -24,6 +24,22 @@ shader_parameter/roughness_metal = 0.42
 material = SubResource("ShaderMaterial_block")
 size = Vector3(1.2, 1.2, 1.2)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bronze_iron"]
+albedo_color = Color(0.82, 0.64, 0.25, 1)
+metallic = 0.90
+roughness = 0.28
+
+[sub_resource type="TorusMesh" id="TorusMesh_pull_ring"]
+material = SubResource("StandardMaterial3D_bronze_iron")
+inner_radius = 0.075
+outer_radius = 0.105
+rings = 14
+ring_segments = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_corner_cap"]
+material = SubResource("StandardMaterial3D_bronze_iron")
+size = Vector3(0.20, 0.20, 0.20)
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
 size = Vector3(1.8, 1.4, 1.8)
 
@@ -39,6 +55,38 @@ shape = SubResource("BoxShape3D_block")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
 mesh = SubResource("BoxMesh_block")
+
+[node name="RingNorth" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, -0.04, -0.615)
+mesh = SubResource("TorusMesh_pull_ring")
+
+[node name="RingSouth" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, -0.04, 0.615)
+mesh = SubResource("TorusMesh_pull_ring")
+
+[node name="RingWest" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(0, 1, 0, 0, -4.37114e-08, -1, -1, 0, -4.37114e-08, -0.615, -0.04, 0)
+mesh = SubResource("TorusMesh_pull_ring")
+
+[node name="RingEast" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(0, 1, 0, 0, -4.37114e-08, -1, -1, 0, -4.37114e-08, 0.615, -0.04, 0)
+mesh = SubResource("TorusMesh_pull_ring")
+
+[node name="CapTLF" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.52, 0.52, 0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapTRF" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, 0.52, 0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapTLB" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.52, 0.52, -0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapTRB" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, 0.52, -0.52)
+mesh = SubResource("BoxMesh_corner_cap")
 
 [node name="InteractionArea" type="Area3D" parent="."]
 collision_layer = 4

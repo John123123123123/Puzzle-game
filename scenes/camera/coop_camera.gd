@@ -23,6 +23,8 @@ var _occlusion_ray_query: PhysicsRayQueryParameters3D = null
 var _hit_meshes_buf: Array[MeshInstance3D] = []
 var _to_remove_buf: Array[MeshInstance3D] = []
 
+const TEMPLE_DUST_MOTES := preload("res://scenes/effects/temple_dust_motes.gd")
+
 func _ready() -> void:
 	add_to_group("coop_camera")
 	target_yaw = yaw_pivot.rotation.y
@@ -30,6 +32,9 @@ func _ready() -> void:
 	_occlusion_ray_query.collision_mask = 1 # Environment / Walls
 	_occlusion_ray_query.collide_with_areas = false
 	_occlusion_ray_query.collide_with_bodies = true
+	var motes := TEMPLE_DUST_MOTES.new()
+	motes.position = Vector3(0.0, 2.2, 0.0)
+	add_child(motes)
 
 func trigger_shake(intensity: float, duration: float = 0.15) -> void:
 	if is_instance_valid(SettingsManager) and not SettingsManager.camera_shake:
@@ -109,10 +114,26 @@ func _update_tracking(delta: float) -> void:
 	if targets.is_empty():
 		return
 
-	var min_pos: Vector3 = targets[0].global_position
-	var max_pos: Vector3 = targets[0].global_position
+	# In online co-op, if our local explorer is downed, smoothly spectate living teammates
+	var active_list: Array[Node3D] = targets
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		var has_living_local := false
+		for t in targets:
+			if not ("current_health" in t) or t.current_health > 0:
+				has_living_local = true
+				break
+		if not has_living_local:
+			var living_allies: Array[Node3D] = []
+			for p in get_tree().get_nodes_in_group("player"):
+				if p is Node3D and is_instance_valid(p) and (not ("current_health" in p) or p.current_health > 0):
+					living_allies.append(p)
+			if not living_allies.is_empty():
+				active_list = living_allies
 
-	for t in targets:
+	var min_pos: Vector3 = active_list[0].global_position
+	var max_pos: Vector3 = active_list[0].global_position
+
+	for t in active_list:
 		var pos = t.global_position
 		min_pos.x = min(min_pos.x, pos.x)
 		min_pos.y = min(min_pos.y, pos.y)

@@ -1,51 +1,160 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/spike_trap.gd" id="1_spike"]
+[ext_resource type="Shader" path="res://shaders/ancient_pillar.gdshader" id="2_stone_shader"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_damage"]
 size = Vector3(1.85, 0.9, 1.85)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone_rim"]
-albedo_color = Color(0.38, 0.32, 0.25, 1)
-roughness = 0.9
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_stone_frame"]
+render_priority = 0
+shader = ExtResource("2_stone_shader")
+shader_parameter/stone_light = Color(0.50, 0.42, 0.32, 1)
+shader_parameter/stone_dark = Color(0.28, 0.22, 0.16, 1)
+shader_parameter/groove_color = Color(0.14, 0.10, 0.07, 1)
+shader_parameter/gold_color = Color(0.86, 0.68, 0.25, 1)
+shader_parameter/lapis_color = Color(0.22, 0.18, 0.15, 1)
+shader_parameter/flute_count = 12.0
+shader_parameter/roughness_base = 0.86
 
-[sub_resource type="BoxMesh" id="BoxMesh_rim"]
-material = SubResource("StandardMaterial3D_stone_rim")
-size = Vector3(2.0, 0.12, 2.0)
+[sub_resource type="BoxMesh" id="BoxMesh_rim_ns"]
+material = SubResource("ShaderMaterial_stone_frame")
+size = Vector3(2.04, 0.14, 0.18)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rim_ew"]
+material = SubResource("ShaderMaterial_stone_frame")
+size = Vector3(0.18, 0.14, 1.68)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_abyss"]
+shading_mode = 0
+albedo_color = Color(0.03, 0.025, 0.03, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_abyss"]
+material = SubResource("StandardMaterial3D_abyss")
+size = Vector3(1.74, 0.03, 1.74)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_iron_grate"]
-albedo_color = Color(0.16, 0.14, 0.13, 1)
-metallic = 0.85
-roughness = 0.65
+albedo_color = Color(0.18, 0.17, 0.19, 1)
+metallic = 0.88
+roughness = 0.44
 
-[sub_resource type="BoxMesh" id="BoxMesh_pit"]
+[sub_resource type="BoxMesh" id="BoxMesh_grate_bar"]
 material = SubResource("StandardMaterial3D_iron_grate")
-size = Vector3(1.78, 0.04, 1.78)
+size = Vector3(1.76, 0.045, 0.065)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bronze_rivet"]
+albedo_color = Color(0.84, 0.64, 0.24, 1)
+metallic = 0.90
+roughness = 0.28
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_rivet"]
+material = SubResource("StandardMaterial3D_bronze_rivet")
+top_radius = 0.055
+bottom_radius = 0.065
+height = 0.05
+radial_segments = 10
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_socket"]
+material = SubResource("StandardMaterial3D_bronze_rivet")
+top_radius = 0.075
+bottom_radius = 0.085
+height = 0.035
+radial_segments = 8
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_spear"]
-albedo_color = Color(0.72, 0.66, 0.58, 1)
-metallic = 0.96
-roughness = 0.22
+albedo_color = Color(0.80, 0.82, 0.86, 1)
+metallic = 0.97
+roughness = 0.16
 rim_enabled = true
-rim = 0.4
+rim = 0.45
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_spear"]
 material = SubResource("StandardMaterial3D_spear")
-top_radius = 0.006
-bottom_radius = 0.07
-height = 0.85
+top_radius = 0.005
+bottom_radius = 0.072
+height = 0.86
 radial_segments = 4
 
 [node name="SpikeTrap" type="Node3D" groups=["spike_trap"]]
 script = ExtResource("1_spike")
 
-[node name="TrapBase" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
-mesh = SubResource("BoxMesh_rim")
+[node name="AbyssFloor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+mesh = SubResource("BoxMesh_abyss")
 
-[node name="PitGrate" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
-mesh = SubResource("BoxMesh_pit")
+[node name="RimNorth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, -0.93)
+mesh = SubResource("BoxMesh_rim_ns")
+
+[node name="RimSouth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0.93)
+mesh = SubResource("BoxMesh_rim_ns")
+
+[node name="RimWest" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.93, 0.07, 0)
+mesh = SubResource("BoxMesh_rim_ew")
+
+[node name="RimEast" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.93, 0.07, 0)
+mesh = SubResource("BoxMesh_rim_ew")
+
+[node name="GrateFrame" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.095, 0)
+
+[node name="BarZ1" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.45)
+mesh = SubResource("BoxMesh_grate_bar")
+
+[node name="BarZ2" type="MeshInstance3D" parent="GrateFrame"]
+mesh = SubResource("BoxMesh_grate_bar")
+
+[node name="BarZ3" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.45)
+mesh = SubResource("BoxMesh_grate_bar")
+
+[node name="BarX1" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.45, 0, 0)
+mesh = SubResource("BoxMesh_grate_bar")
+
+[node name="BarX2" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+mesh = SubResource("BoxMesh_grate_bar")
+
+[node name="BarX3" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.45, 0, 0)
+mesh = SubResource("BoxMesh_grate_bar")
+
+[node name="RivetNW" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.92, 0.055, -0.92)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="RivetNE" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 0.055, -0.92)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="RivetSW" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.92, 0.055, 0.92)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="RivetSE" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 0.055, 0.92)
+mesh = SubResource("CylinderMesh_rivet")
+
+[node name="Socket1" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.675, -0.01, -0.675)
+mesh = SubResource("CylinderMesh_socket")
+
+[node name="Socket2" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.675, -0.01, -0.675)
+mesh = SubResource("CylinderMesh_socket")
+
+[node name="Socket3" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.675, -0.01, 0.675)
+mesh = SubResource("CylinderMesh_socket")
+
+[node name="Socket4" type="MeshInstance3D" parent="GrateFrame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.675, -0.01, 0.675)
+mesh = SubResource("CylinderMesh_socket")
 
 [node name="SpikesRoot" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.45, 0)

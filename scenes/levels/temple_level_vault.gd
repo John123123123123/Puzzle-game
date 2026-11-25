@@ -76,19 +76,18 @@ func _refresh_objective() -> void:
 	if not is_instance_valid(hud):
 		return
 	var phase_name := "SUN" if _world_phase == 0 else "MOON"
-	var p_cnt := maxi(1, players.size())
 	if is_instance_valid(observatory_gate) and observatory_gate.is_open:
 		hud.set_objective("Level 3 [Phase: %s]: Enter the astral portal to reach the Temple of the Golden Idol!" % phase_name)
 	elif is_instance_valid(eclipse_gate) and eclipse_gate.is_open:
-		hud.set_objective("Level 3 [Phase: %s]: Cross the Twin-Moon Gauntlet — pull both levers & hold %d Guardian Seal(s)!" % [phase_name, p_cnt])
+		hud.set_objective("Level 3 [Phase: %s]: Cross the Twin-Moon Gauntlet and pull both observatory levers!" % phase_name)
 	elif is_instance_valid(sanctum_gate) and sanctum_gate.is_open:
-		hud.set_objective("Level 3 [Phase: %s]: Ignite Sun & Moon braziers (%d/2) and hold %d Eclipse Seal(s)!" % [phase_name, _eclipse_braziers_lit, p_cnt])
+		hud.set_objective("Level 3 [Phase: %s]: Shift phases across the chasm to ignite Sun & Moon braziers (%d/2)!" % [phase_name, _eclipse_braziers_lit])
 	elif is_instance_valid(gate_chamber_2) and gate_chamber_2.is_open:
 		var plates_lit := 0
 		if is_instance_valid(plate_west) and plate_west.is_pressed:
 			plates_lit += 1
 		if is_instance_valid(plate_east) and plate_east.is_pressed:
 			plates_lit += 1
-		hud.set_objective("Level 3 [Phase: %s]: Place both vault relics (%d/2) and hold %d Sanctum Seal(s)!" % [phase_name, plates_lit, p_cnt])
+		hud.set_objective("Level 3 [Phase: %s]: Unlock the Sun & Moon vaults and place both crates on the plates (%d/2)!" % [phase_name, plates_lit])
 	else:
-		hud.set_objective("Level 3 [Phase: %s]: Carry the relic across the phase bridges & hold %d Astral Seal(s)!" % [phase_name, p_cnt])
+		hud.set_objective("Level 3 [Phase: %s]: Move the crate across the astral phase bridges onto the pressure plate!" % phase_name)

@@ -86,20 +86,14 @@ func _on_vault_brazier_lit(is_lit: bool) -> void:
 func _refresh_objective() -> void:
 	if not is_instance_valid(hud):
 		return
-	var p_cnt := maxi(1, players.size())
 	if is_instance_valid(gate_room4) and gate_room4.is_open:
 		hud.set_objective("Level 1: The Catacomb Crucible is conquered! Enter the portal ahead!")
 	elif is_instance_valid(gate_room3) and gate_room3.is_open:
-		if p_cnt >= 2:
-			hud.set_objective("Level 1: Pull both Crucible levers and stand on all %d Guardian Seals together!" % p_cnt)
-		else:
-			hud.set_objective("Level 1: Pull both Crucible levers and step onto the Guardian Seal!")
+		hud.set_objective("Level 1: Brave the spinning flames and pull both Crucible levers!")
 	elif is_instance_valid(gate_room2) and gate_room2.is_open:
 		var plate_txt := "1/1" if (is_instance_valid(vault_plate) and vault_plate.is_pressed) else "0/1"
-		hud.set_objective("Level 1: Light the Ossuary braziers (%d/2) and weigh down the crypt seal (%s)!" % [lit_vault_braziers, plate_txt])
+		hud.set_objective("Level 1: Light the Ossuary braziers (%d/2) and place the crate on the crypt plate (%s)!" % [lit_vault_braziers, plate_txt])
 	elif is_instance_valid(gate_room1) and gate_room1.is_open:
 		hud.set_objective("Level 1: Use the shield crate and pull both corridor levers to breach the Ossuary!")
-	elif lit_entry_braziers >= 3:
-		hud.set_objective("Level 1: Braziers lit! All %d explorers stand on the threshold Guardian Seals!" % p_cnt)
 	else:
-		hud.set_objective("Level 1: Light the 3 antechamber braziers (%d/3) to awaken the threshold seals!" % lit_entry_braziers)
+		hud.set_objective("Level 1: Light the 3 antechamber braziers (%d/3) to unseal the inner gate!" % lit_entry_braziers)

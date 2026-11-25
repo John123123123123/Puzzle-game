@@ -19,6 +19,10 @@ var _coop_enabled: bool = true
 
 @onready var spawn_point: Marker3D = $SpawnPoint
 @onready var trigger_area: Area3D = $TriggerArea
+@onready var eye_l: MeshInstance3D = get_node_or_null("Visage/EyeL")
+@onready var eye_r: MeshInstance3D = get_node_or_null("Visage/EyeR")
+@onready var eye_light: OmniLight3D = get_node_or_null("EyeLight")
+var _eye_mat: StandardMaterial3D = null
 
 func _ready() -> void:
 	add_to_group("dart_trap")
@@ -28,10 +32,30 @@ func _ready() -> void:
 	_los_query = PhysicsRayQueryParameters3D.new()
 	_los_query.collision_mask = 1 | 2 # Layer 1 = Environment/Crates, Layer 2 = Player
 	_los_query.exclude = [self]
+	if is_instance_valid(eye_l) and eye_l.get_active_material(0) is StandardMaterial3D:
+		_eye_mat = (eye_l.get_active_material(0) as StandardMaterial3D).duplicate()
+		eye_l.material_override = _eye_mat
+		if is_instance_valid(eye_r):
+			eye_r.material_override = _eye_mat
+	_refresh_eye_glow(false)
 	set_process(false)
 	if trigger_area:
 		trigger_area.body_entered.connect(_on_trigger_body_entered)
 		trigger_area.body_exited.connect(_on_trigger_body_exited)
+
+func _refresh_eye_glow(charging: bool) -> void:
+	if _eye_mat:
+		if not is_active:
+			_eye_mat.albedo_color = Color(0.16, 0.18, 0.16)
+			_eye_mat.emission_energy_multiplier = 0.0
+		elif charging:
+			_eye_mat.albedo_color = Color(0.45, 1.0, 0.55)
+			_eye_mat.emission_energy_multiplier = 5.0
+		else:
+			_eye_mat.albedo_color = Color(0.22, 0.95, 0.38)
+			_eye_mat.emission_energy_multiplier = 2.0
+	if is_instance_valid(eye_light):
+		eye_light.light_energy = 0.0 if not is_active else (1.9 if charging else 0.5)
 
 func apply_coop_difficulty(player_count: int) -> void:
 	_coop_enabled = player_count >= min_players
@@ -109,7 +133,8 @@ func _trigger_sequence() -> void:
 	_is_triggering = true
 	_cooldown_timer = shoot_interval
 
-	# 1. Subtle hair-trigger click (gives player a split second of tension)
+	# 1. Subtle hair-trigger click + venomous eye flare
+	_refresh_eye_glow(true)
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"dart_click", global_position, 0.95, 1.05, 0.0, 20.0, 5.0)
 
@@ -121,6 +146,7 @@ func _trigger_sequence() -> void:
 	# 2. Fire the dart
 	if is_active:
 		_shoot_dart()
+	_refresh_eye_glow(false)
 
 	_is_triggering = false
 
@@ -138,9 +164,12 @@ func _shoot_dart() -> void:
 
 func register_trigger_activated() -> void:
 	is_active = false
+	_refresh_eye_glow(false)
 
 func register_trigger_deactivated() -> void:
 	is_active = true
+	_refresh_eye_glow(false)
 
 func toggle() -> void:
 	is_active = !is_active
+	_refresh_eye_glow(false)

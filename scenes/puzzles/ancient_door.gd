@@ -74,6 +74,11 @@ func _get_pressed_plates_count() -> int:
 	return count
 
 func force_open_permanent() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+		_rpc_sync_door.rpc(true, true)
+	_apply_force_open()
+
+func _apply_force_open() -> void:
 	required_triggers = 0
 	if not is_open:
 		is_open = true
@@ -82,7 +87,20 @@ func force_open_permanent() -> void:
 	if is_instance_valid(collision_shape):
 		collision_shape.set_deferred("disabled", true)
 
+@rpc("authority", "reliable")
+func _rpc_sync_door(open_state: bool, permanent: bool) -> void:
+	if permanent:
+		_apply_force_open()
+		return
+	if is_open != open_state:
+		is_open = open_state
+		_animate_door(is_open)
+		if is_open:
+			door_opened.emit(self)
+
 func _evaluate_door_state() -> void:
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		return
 	if required_triggers == 0:
 		return
 
@@ -93,12 +111,16 @@ func _evaluate_door_state() -> void:
 			is_open = true
 			_animate_door(true)
 			door_opened.emit(self)
+			if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+				_rpc_sync_door.rpc(true, stays_open)
 		if stays_open:
 			required_triggers = 0
 	elif not stays_open:
 		if is_open:
 			is_open = false
 			_animate_door(false)
+			if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+				_rpc_sync_door.rpc(false, false)
 
 func _animate_door(open: bool) -> void:
 	var target_pos = closed_position + (Vector3.UP * open_height if open else Vector3.ZERO)
