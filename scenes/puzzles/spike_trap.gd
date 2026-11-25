@@ -80,3 +80,11 @@ func _check_damage_overlapping() -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if is_active and body is Player:
 		body.take_damage(damage)
+
+func sync_network_time(host_time: float) -> void:
+	if not _coop_enabled:
+		return
+	if absf(timer - host_time) > 0.14:
+		timer = host_time
+	else:
+		timer = lerpf(timer, host_time, 0.35)

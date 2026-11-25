@@ -125,3 +125,11 @@ func _check_area(area: Area3D) -> void:
 func _on_flame_hit(body: Node3D) -> void:
 	if _coop_enabled and body is Player:
 		body.take_damage(damage)
+
+func sync_network_yaw(host_yaw: float) -> void:
+	if not _coop_enabled or not is_instance_valid(spinner_head):
+		return
+	if absf(angle_difference(spinner_head.rotation.y, host_yaw)) > 0.65:
+		spinner_head.rotation.y = host_yaw
+	else:
+		spinner_head.rotation.y = lerp_angle(spinner_head.rotation.y, host_yaw, 0.35)

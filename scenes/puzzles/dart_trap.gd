@@ -71,7 +71,13 @@ func apply_coop_difficulty(player_count: int) -> void:
 	dart_speed = _base_speed + 1.4 * float(extra)
 	trigger_delay = maxf(0.12, _base_delay - 0.045 * float(extra))
 
+func _is_network_authority() -> bool:
+	return not (is_instance_valid(NetworkManager) and NetworkManager.is_online) or NetworkManager.is_host
+
 func _process(delta: float) -> void:
+	if not _is_network_authority():
+		set_process(false)
+		return
 	if not is_active:
 		if _cooldown_timer <= 0.0:
 			set_process(false)
@@ -87,6 +93,8 @@ func _process(delta: float) -> void:
 		set_process(false)
 
 func _on_trigger_body_entered(body: Node3D) -> void:
+	if not _is_network_authority():
+		return
 	if body is Player and not _players_in_range.has(body):
 		_players_in_range.append(body)
 		set_process(true)
@@ -94,6 +102,8 @@ func _on_trigger_body_entered(body: Node3D) -> void:
 			_evaluate_and_fire()
 
 func _on_trigger_body_exited(body: Node3D) -> void:
+	if not _is_network_authority():
+		return
 	if body is Player:
 		_players_in_range.erase(body)
 
@@ -117,7 +127,7 @@ func _has_line_of_sight(player: Player) -> bool:
 	return true
 
 func _evaluate_and_fire() -> void:
-	if not is_active or not _coop_enabled or _is_triggering:
+	if not _is_network_authority() or not is_active or not _coop_enabled or _is_triggering:
 		return
 
 	var has_target = false
@@ -130,27 +140,39 @@ func _evaluate_and_fire() -> void:
 		_trigger_sequence()
 
 func _trigger_sequence() -> void:
+	if not _is_network_authority():
+		return
 	_is_triggering = true
 	_cooldown_timer = shoot_interval
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+		_rpc_fire_sequence.rpc(dart_speed, dart_range, trigger_delay)
+	else:
+		_run_fire_sequence(dart_speed, dart_range, trigger_delay)
 
+@rpc("authority", "call_local", "reliable")
+func _rpc_fire_sequence(fire_speed: float, fire_range: float, fire_delay: float) -> void:
+	_run_fire_sequence(fire_speed, fire_range, fire_delay)
+
+func _run_fire_sequence(fire_speed: float, fire_range: float, fire_delay: float) -> void:
+	_is_triggering = true
 	# 1. Subtle hair-trigger click + venomous eye flare
 	_refresh_eye_glow(true)
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"dart_click", global_position, 0.95, 1.05, 0.0, 20.0, 5.0)
 
-	if trigger_delay > 0.0:
-		await get_tree().create_timer(trigger_delay).timeout
+	if fire_delay > 0.0:
+		await get_tree().create_timer(fire_delay).timeout
 		if not is_instance_valid(self) or not is_inside_tree():
 			return
 
 	# 2. Fire the dart
 	if is_active:
-		_shoot_dart()
+		_shoot_dart(fire_speed, fire_range)
 	_refresh_eye_glow(false)
 
 	_is_triggering = false
 
-func _shoot_dart() -> void:
+func _shoot_dart(fire_speed: float, fire_range: float) -> void:
 	# Launch sound
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"dart_launch", global_position, 0.96, 1.05, 0.0, 20.0, 5.0)
@@ -159,8 +181,8 @@ func _shoot_dart() -> void:
 	var dart = preload("res://scenes/puzzles/dart_projectile.tscn").instantiate() as DartProjectile
 	get_parent().add_child(dart)
 	dart.global_transform = spawn_point.global_transform
-	dart.speed = dart_speed
-	dart.max_distance = dart_range
+	dart.speed = fire_speed
+	dart.max_distance = fire_range
 
 func register_trigger_activated() -> void:
 	is_active = false

@@ -15,6 +15,8 @@ var is_game_over: bool = false
 var level_complete: bool = false
 var latest_checkpoint_pos: Vector3 = Vector3.ZERO
 var _world_sync_timer: float = 0.0
+var _trap_clock: float = 0.0
+var _trap_sync_timer: float = 0.0
 
 func _ready() -> void:
 	if is_instance_valid(player_spawn_1):
@@ -34,6 +36,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not is_instance_valid(NetworkManager) or not NetworkManager.is_online or not NetworkManager.is_host:
 		return
+	_trap_clock += delta
 	_world_sync_timer += delta
 	if _world_sync_timer >= 0.05:
 		_world_sync_timer = 0.0
@@ -45,6 +48,28 @@ func _process(delta: float) -> void:
 				positions.append(b.global_position)
 		if not paths.is_empty():
 			_rpc_sync_blocks.rpc(paths, positions)
+	_trap_sync_timer += delta
+	if _trap_sync_timer >= 0.10:
+		_trap_sync_timer = 0.0
+		var spinner_paths: Array = []
+		var spinner_yaws: PackedFloat32Array = PackedFloat32Array()
+		for sp in get_tree().get_nodes_in_group("flame_spinner"):
+			if is_instance_valid(sp) and sp is Node3D and sp.has_method("sync_network_yaw"):
+				var head: Node3D = sp.get("spinner_head") as Node3D
+				if is_instance_valid(head):
+					spinner_paths.append(get_path_to(sp))
+					spinner_yaws.append(head.rotation.y)
+		_rpc_sync_traps.rpc(_trap_clock, spinner_paths, spinner_yaws)
+
+@rpc("authority", "unreliable_ordered")
+func _rpc_sync_traps(host_clock: float, spinner_paths: Array, spinner_yaws: PackedFloat32Array) -> void:
+	for st in get_tree().get_nodes_in_group("spike_trap"):
+		if is_instance_valid(st) and st.has_method("sync_network_time"):
+			st.sync_network_time(host_clock)
+	for i in range(mini(spinner_paths.size(), spinner_yaws.size())):
+		var sp := get_node_or_null(spinner_paths[i])
+		if is_instance_valid(sp) and sp.has_method("sync_network_yaw"):
+			sp.sync_network_yaw(spinner_yaws[i])
 
 @rpc("authority", "unreliable_ordered")
 func _rpc_sync_blocks(paths: Array, positions: PackedVector3Array) -> void:

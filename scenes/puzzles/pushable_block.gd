@@ -91,6 +91,15 @@ func grab(player: Player) -> void:
 		_rpc_sync_grab.rpc(player.player_id if is_instance_valid(player) else 0)
 
 func release() -> void:
+	var was_local_client_grab: bool = (
+		is_instance_valid(grabbed_by)
+		and grabbed_by.is_local_controlled()
+		and is_instance_valid(NetworkManager)
+		and NetworkManager.is_online
+		and not NetworkManager.is_host
+	)
+	if was_local_client_grab:
+		_rpc_request_release.rpc_id(1, global_position)
 	if is_instance_valid(grabbed_by):
 		remove_collision_exception_with(grabbed_by)
 		if grabbed_by.grabbed_block == self:
@@ -98,6 +107,19 @@ func release() -> void:
 	grabbed_by = null
 	if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
 		_rpc_sync_grab.rpc(0)
+
+@rpc("any_peer", "reliable")
+func _rpc_request_release(client_pos: Vector3) -> void:
+	if not is_instance_valid(NetworkManager) or not NetworkManager.is_online or not NetworkManager.is_host:
+		return
+	if not is_instance_valid(grabbed_by):
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if sender_id != NetworkManager.get_peer_for_slot(grabbed_by.player_id):
+		return
+	if global_position.distance_to(client_pos) < 2.8:
+		global_position = client_pos
+	release()
 
 @rpc("authority", "reliable")
 func _rpc_sync_grab(pid: int) -> void:
@@ -116,12 +138,14 @@ func _rpc_sync_grab(pid: int) -> void:
 		add_collision_exception_with(p)
 
 func _physics_process(delta: float) -> void:
+	var is_authority: bool = not (is_instance_valid(NetworkManager) and NetworkManager.is_online) or NetworkManager.is_host
 	# If grabbed by a player, lift slightly and carry the crate smoothly in front of them
 	if is_instance_valid(grabbed_by):
 		var dist = global_position.distance_to(grabbed_by.global_position)
 		if dist > 3.6:
-			# Auto-release if blocked by a solid wall and player walks far away
-			release()
+			if is_authority:
+				# Auto-release if blocked by a solid wall and player walks far away
+				release()
 		else:
 			var forward := Vector3(grabbed_by.mesh_root.global_basis.z.x, 0.0, grabbed_by.mesh_root.global_basis.z.z)
 			forward = forward.normalized() if forward.length_squared() > 0.0001 else Vector3.BACK
@@ -153,7 +177,7 @@ func _physics_process(delta: float) -> void:
 				spawn_position = global_position
 				break
 
-	if global_position.y < -4.5:
+	if is_authority and global_position.y < -4.5:
 		release()
 		velocity = Vector3.ZERO
 		push_velocity = Vector3.ZERO
