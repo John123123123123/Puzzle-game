@@ -235,6 +235,7 @@ func _add_kv_row(parent: VBoxContainer, key_text: String) -> Label:
 
 	var v := Label.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_theme_font_size_override("font_size", 14)
 	row.add_child(v)
 	return v
@@ -248,6 +249,8 @@ func _refresh_ui() -> void:
 		return
 
 	_mode_value.text = UpdateManager.get_install_mode_label()
+	if UpdateManager.install_mode == UpdateManager.InstallMode.STANDALONE_EXPORT:
+		_mode_value.text += "  (Note: binary/engine/config updates require downloading a new GitHub build)"
 
 	var local_txt := UpdateManager.get_display_version()
 	if UpdateManager.has_local_changes:

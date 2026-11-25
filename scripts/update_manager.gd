@@ -25,6 +25,7 @@ const GITHUB_WEB_URL: String = "https://github.com/%s/%s" % [REPO_OWNER, REPO_NA
 const VERSION_STAMP_PATH: String = "user://installed_update_version.cfg"
 const TEMP_ZIP_PATH: String = "user://github_main_update.zip"
 const LIVE_PATCH_ZIP_PATH: String = "user://live_patch_main.zip"
+const FILE_MANIFEST_PATH: String = "user://installed_files_manifest.txt"
 
 const GITHUB_HEADERS: PackedStringArray = [
 	"User-Agent: RaidersOfTheLostTemple-GodotUpdater/1.0",
@@ -116,9 +117,15 @@ func short_sha(sha: String) -> String:
 	return sha.left(7)
 
 func get_base_version() -> String:
-	var raw := str(ProjectSettings.get_setting("application/config/version", "1.5.0")).strip_edges()
+	var raw: String = ""
+	if OS.has_feature("standalone") and FileAccess.file_exists(LIVE_PATCH_ZIP_PATH):
+		var cfg := ConfigFile.new()
+		if cfg.load(VERSION_STAMP_PATH) == OK:
+			raw = str(cfg.get_value("version", "semver", "")).strip_edges()
 	if raw.is_empty():
-		raw = "1.5.0"
+		raw = str(ProjectSettings.get_setting("application/config/version", "1.5.3")).strip_edges()
+	if raw.is_empty():
+		raw = "1.5.3"
 	return raw if raw.begins_with("v") else ("v" + raw)
 
 func get_display_version() -> String:
@@ -170,7 +177,7 @@ func start_update(stash_local_changes: bool = false) -> void:
 		status_text = "Updating from origin/main via Git..."
 		_append_log("Starting git update from origin/%s..." % BRANCH)
 		state_changed.emit()
-		_start_thread(_thread_git_pull_update.bind(_get_project_dir(), stash_local_changes))
+		_start_thread(_thread_git_pull_update.bind(_get_project_dir(), stash_local_changes, OS.get_executable_path()))
 	else:
 		_start_zip_archive_download()
 
@@ -253,11 +260,15 @@ func _load_saved_stamp_sha() -> String:
 		return str(cfg.get_value("version", "sha", ""))
 	return ""
 
-func _save_stamp_sha(sha: String) -> void:
-	if sha.is_empty():
+func _save_stamp_sha(sha: String, semver: String = "") -> void:
+	if sha.is_empty() and semver.is_empty():
 		return
 	var cfg := ConfigFile.new()
-	cfg.set_value("version", "sha", sha)
+	cfg.load(VERSION_STAMP_PATH)
+	if not sha.is_empty():
+		cfg.set_value("version", "sha", sha)
+	if not semver.is_empty():
+		cfg.set_value("version", "semver", semver)
 	cfg.set_value("version", "updated_at", Time.get_datetime_string_from_system())
 	cfg.save(VERSION_STAMP_PATH)
 
@@ -470,7 +481,37 @@ func _on_git_fallback_done(res: Dictionary) -> void:
 		status_text = "✨ New update available on main (%s → %s)!" % [short_sha(local_sha), short_sha(remote_sha)]
 	state_changed.emit()
 
-func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
+func _thread_reimport_project(project_dir: String, exe_path: String, logs: Array[String]) -> void:
+	if exe_path.is_empty():
+		return
+	logs.append("Rebuilding Godot class & UID cache (--headless --import)...")
+	var out: Array = []
+	var code: int = OS.execute(exe_path, PackedStringArray(["--headless", "--path", project_dir, "--import"]), out, true, false)
+	if code == 0:
+		logs.append("Godot class & UID cache refreshed.")
+	else:
+		logs.append("Cache refresh exited with code %d." % code)
+
+func _collect_managed_files_recursive(base_dir: String, rel_dir: String, out_list: Array[String]) -> void:
+	var abs_dir: String = base_dir.path_join(rel_dir)
+	var da := DirAccess.open(abs_dir)
+	if da == null:
+		return
+	da.list_dir_begin()
+	var item: String = da.get_next()
+	while not item.is_empty():
+		if not item.begins_with("."):
+			var child_rel: String = rel_dir.path_join(item).replace("\\", "/")
+			if da.current_is_dir():
+				_collect_managed_files_recursive(base_dir, child_rel, out_list)
+			else:
+				var ext: String = item.get_extension().to_lower()
+				if ext in ["gd", "tscn", "tres", "gdshader", "uid"]:
+					out_list.append(child_rel)
+		item = da.get_next()
+	da.list_dir_end()
+
+func _thread_git_pull_update(project_dir: String, stash_first: bool, exe_path: String) -> void:
 	var logs: Array[String] = []
 	var status_res := _run_git(project_dir, ["status", "--porcelain"])
 	var is_dirty: bool = (int(status_res["code"]) == 0 and not str(status_res["output"]).is_empty())
@@ -538,6 +579,8 @@ func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
 				"msg": "Automatic merge conflicted (aborted cleanly so nothing broke): " + str(rebase_res["output"]),
 			})
 			return
+
+	_thread_reimport_project(project_dir, exe_path, logs)
 
 	var updated_head := _run_git(project_dir, ["rev-parse", "HEAD"])
 	var final_sha := str(updated_head["output"]).strip_edges()
@@ -622,35 +665,43 @@ func _on_zip_download_completed(result: int, response_code: int, _headers: Packe
 	_append_log("Archive downloaded. Applying update files...")
 	state_changed.emit()
 
-	var is_standalone := OS.has_feature("standalone")
+	var is_standalone: bool = OS.has_feature("standalone")
 	_start_thread(_thread_apply_zip_archive.bind(
 		ProjectSettings.globalize_path(TEMP_ZIP_PATH),
 		_get_project_dir(),
 		is_standalone,
-		ProjectSettings.globalize_path(LIVE_PATCH_ZIP_PATH)
+		ProjectSettings.globalize_path(LIVE_PATCH_ZIP_PATH),
+		ProjectSettings.globalize_path(FILE_MANIFEST_PATH),
+		OS.get_executable_path()
 	))
 
-func _thread_apply_zip_archive(zip_abs_path: String, project_dir: String, is_standalone: bool, patch_zip_abs: String) -> void:
+func _thread_apply_zip_archive(zip_abs_path: String, project_dir: String, is_standalone: bool, patch_zip_abs: String, manifest_abs_path: String, exe_path: String) -> void:
+	var logs: Array[String] = []
 	var reader := ZIPReader.new()
-	var err := reader.open(zip_abs_path)
+	var err: int = reader.open(zip_abs_path)
 	if err != OK:
 		call_deferred("_on_zip_install_done", {
 			"ok": false,
+			"logs": logs,
 			"msg": "Could not open downloaded ZIP archive (Error %d)." % err,
 		})
 		return
 
 	var files := reader.get_files()
 	var updated_count: int = 0
+	var removed_count: int = 0
+	var extracted_semver: String = ""
+	var new_files: Dictionary = {}
 	var packer: ZIPPacker = null
 
 	if is_standalone:
 		packer = ZIPPacker.new()
-		var p_err := packer.open(patch_zip_abs, ZIPPacker.APPEND_CREATE)
+		var p_err: int = packer.open(patch_zip_abs, ZIPPacker.APPEND_CREATE)
 		if p_err != OK:
 			reader.close()
 			call_deferred("_on_zip_install_done", {
 				"ok": false,
+				"logs": logs,
 				"msg": "Could not create live patch pack (Error %d)." % p_err,
 			})
 			return
@@ -658,20 +709,29 @@ func _thread_apply_zip_archive(zip_abs_path: String, project_dir: String, is_sta
 	for entry in files:
 		if entry.ends_with("/"):
 			continue
-		var slash_idx := entry.find("/")
-		var rel_path := entry.substr(slash_idx + 1) if slash_idx >= 0 else entry
+		var slash_idx: int = entry.find("/")
+		var rel_path: String = (entry.substr(slash_idx + 1) if slash_idx >= 0 else entry).replace("\\", "/")
 		if rel_path.is_empty() or rel_path.begins_with(".git/") or rel_path.begins_with(".godot/"):
 			continue
 
-		var file_bytes := reader.read_file(entry)
+		var file_bytes: PackedByteArray = reader.read_file(entry)
+		if rel_path == "project.godot":
+			var pg_txt: String = file_bytes.get_string_from_utf8()
+			for line in pg_txt.split("\n"):
+				var clean_line: String = line.strip_edges()
+				if clean_line.begins_with("config/version="):
+					extracted_semver = clean_line.substr(15).strip_edges().trim_prefix("\"").trim_suffix("\"")
+					break
+
+		new_files[rel_path] = true
 		if is_standalone and packer != null:
 			if packer.start_file(rel_path) == OK:
 				packer.write_file(file_bytes)
 				packer.close_file()
 				updated_count += 1
 		else:
-			var dest_abs := project_dir.path_join(rel_path)
-			var parent_dir := dest_abs.get_base_dir()
+			var dest_abs: String = project_dir.path_join(rel_path)
+			var parent_dir: String = dest_abs.get_base_dir()
 			if not DirAccess.dir_exists_absolute(parent_dir):
 				DirAccess.make_dir_recursive_absolute(parent_dir)
 			var fa := FileAccess.open(dest_abs, FileAccess.WRITE)
@@ -685,10 +745,47 @@ func _thread_apply_zip_archive(zip_abs_path: String, project_dir: String, is_sta
 	reader.close()
 	DirAccess.remove_absolute(zip_abs_path)
 
+	if not is_standalone and updated_count > 0:
+		var prev_files: Array[String] = []
+		if FileAccess.file_exists(manifest_abs_path):
+			var prev_txt: String = FileAccess.get_file_as_string(manifest_abs_path)
+			for p_line in prev_txt.split("\n", false):
+				var clean_p: String = p_line.strip_edges().replace("\\", "/")
+				if not clean_p.is_empty():
+					prev_files.append(clean_p)
+		else:
+			for sub in ["scenes", "scripts", "shaders"]:
+				_collect_managed_files_recursive(project_dir, sub, prev_files)
+
+		for old_rel in prev_files:
+			if old_rel.begins_with(".git/") or old_rel.begins_with(".godot/"):
+				continue
+			if not new_files.has(old_rel):
+				var full_old: String = project_dir.path_join(old_rel)
+				if FileAccess.file_exists(full_old) and DirAccess.remove_absolute(full_old) == OK:
+					removed_count += 1
+
+		var sorted_keys: Array[String] = []
+		for k in new_files.keys():
+			sorted_keys.append(str(k))
+		sorted_keys.sort()
+		var mf := FileAccess.open(manifest_abs_path, FileAccess.WRITE)
+		if mf != null:
+			mf.store_string("\n".join(sorted_keys))
+			mf.close()
+
+		if removed_count > 0:
+			logs.append("Removed %d deleted/renamed file(s) from previous version." % removed_count)
+
+		_thread_reimport_project(project_dir, exe_path, logs)
+
 	call_deferred("_on_zip_install_done", {
 		"ok": updated_count > 0,
 		"count": updated_count,
+		"removed": removed_count,
+		"semver": extracted_semver,
 		"standalone": is_standalone,
+		"logs": logs,
 		"msg": "✓ Installed %d files from main! Restart the game to apply all changes." % updated_count if updated_count > 0 else "No files were extracted from archive.",
 	})
 
@@ -696,8 +793,12 @@ func _on_zip_install_done(res: Dictionary) -> void:
 	if _worker_thread != null and _worker_thread.is_started():
 		_worker_thread.wait_to_finish()
 
+	for line in res.get("logs", []):
+		if not str(line).strip_edges().is_empty():
+			_append_log(str(line))
+
 	is_busy = false
-	var ok := bool(res.get("ok", false))
+	var ok: bool = bool(res.get("ok", false))
 	status_text = str(res.get("msg", ""))
 	_append_log(status_text)
 
@@ -705,9 +806,12 @@ func _on_zip_install_done(res: Dictionary) -> void:
 		progress_ratio = 1.0
 		if bool(res.get("standalone", false)) and FileAccess.file_exists(LIVE_PATCH_ZIP_PATH):
 			ProjectSettings.load_resource_pack(LIVE_PATCH_ZIP_PATH, true)
+		var semver: String = str(res.get("semver", ""))
 		if not remote_sha.is_empty():
 			local_sha = remote_sha
-			_save_stamp_sha(local_sha)
+			_save_stamp_sha(local_sha, semver)
+		elif not semver.is_empty():
+			_save_stamp_sha("", semver)
 		update_available = false
 		restart_recommended = true
 	else:
