@@ -736,7 +736,7 @@ func _can_interact_while_carrying(target: Node3D) -> bool:
 		return false
 	if target.is_in_group("carryable") or target is PushableBlock or target.is_in_group("pushable"):
 		return false
-	if target is Brazier and target.is_lit:
+	if target is Brazier:
 		return false
 	return target.has_method("interact")
 
@@ -750,7 +750,7 @@ func interact(by_player: Player = null) -> void:
 	if by_player != null and by_player != self:
 		return
 
-	# If carrying something (e.g., Torch), prioritize lighting an unlit Brazier or operating a switch
+	# If carrying something (e.g., Torch), prioritize operating a nearby switch/interactable
 	if carried_item != null:
 		if _can_interact_while_carrying(current_interactable) and _has_clear_interact_los(current_interactable):
 			current_interactable.interact(self)
@@ -765,7 +765,7 @@ func interact(by_player: Player = null) -> void:
 		return
 
 	# Otherwise, interact with nearby object
-	if is_instance_valid(current_interactable) and _has_clear_interact_los(current_interactable):
+	if is_instance_valid(current_interactable) and not (current_interactable is Brazier) and _has_clear_interact_los(current_interactable):
 		if current_interactable.is_in_group("carryable"):
 			pick_up_item(current_interactable)
 		elif current_interactable.has_method("interact"):
@@ -1116,9 +1116,12 @@ func _update_interact_prompt() -> void:
 	if target != _last_prompt_target or action_text != _last_prompt_text:
 		_last_prompt_target = target
 		_last_prompt_text = action_text
-		var online_mode := is_instance_valid(NetworkManager) and NetworkManager.is_online
-		var key_hint := "[E]" if (player_id == 1 or online_mode) else ("[Enter]" if player_id == 2 else "(A)")
-		prompt_label.text = "%s %s" % [key_hint, action_text]
+		if target is Brazier:
+			prompt_label.text = action_text
+		else:
+			var online_mode := is_instance_valid(NetworkManager) and NetworkManager.is_online
+			var key_hint := "[E]" if (player_id == 1 or online_mode) else ("[Enter]" if player_id == 2 else "(A)")
+			prompt_label.text = "%s %s" % [key_hint, action_text]
 
 	prompt_label.global_position = target.global_position + Vector3(0, 1.65, 0)
 	prompt_label.visible = true
@@ -1194,8 +1197,8 @@ func _refresh_best_interactable() -> void:
 		if carried_item != null and not _can_interact_while_carrying(cand):
 			continue
 
-		# Skip already-completed / inert objects (e.g. lit braziers, smashed urns)
-		if cand is Brazier and cand.is_lit:
+		# Skip already-completed / inert objects (e.g. lit braziers, braziers while holding a torch, smashed urns)
+		if cand is Brazier and (cand.is_lit or carried_item is Torch):
 			continue
 		if not cand.is_in_group("carryable") and cand.has_method("get_interact_prompt"):
 			if str(cand.get_interact_prompt()).is_empty():
@@ -1204,7 +1207,7 @@ func _refresh_best_interactable() -> void:
 			continue
 
 		# Unlit Brazier when NOT holding a torch is informational ("Requires Torch") — never let it block grabbing nearby items/switches!
-		var is_passive_hint := (cand is Brazier and not (carried_item is Torch))
+		var is_passive_hint := (cand is Brazier)
 
 		var to_cand := Vector3(cand.global_position.x - global_position.x, 0.0, cand.global_position.z - global_position.z)
 		var dist := to_cand.length()

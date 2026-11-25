@@ -15,11 +15,15 @@ signal lit_state_changed(is_lit: bool)
 var _flicker_time: float = 0.0
 var _coal_mat: StandardMaterial3D = null
 var _collar_mat: StandardMaterial3D = null
+var _nearby_players: Array[Player] = []
+var _ignite_request_cooldown: float = 0.0
 
 func _ready() -> void:
 	add_to_group("brazier")
 	add_to_group("interactable")
 	interaction_area.body_entered.connect(_on_body_entered)
+	interaction_area.body_exited.connect(_on_body_exited)
+	set_physics_process(false)
 	_flicker_time = randf() * 10.0
 
 	if is_instance_valid(coal_bed):
@@ -49,24 +53,69 @@ func get_interact_prompt() -> String:
 	return "" if is_lit else "Requires Torch"
 
 func get_interact_prompt_for(player: Player) -> String:
-	if is_lit:
+	if is_lit or (is_instance_valid(player) and player.carried_item is Torch):
 		return ""
-	if is_instance_valid(player) and player.carried_item is Torch:
-		return "Light Brazier"
 	return "Requires Torch"
 
-func interact(player: Player) -> void:
-	if not is_lit and is_instance_valid(player) and player.carried_item is Torch and _has_clear_los_to(player):
-		ignite()
+func interact(_player: Player) -> void:
+	pass
 
 func on_whipped(_player: Player) -> void:
 	pass
 
 func _on_body_entered(body: Node3D) -> void:
-	if is_lit:
+	if is_lit or not (body is Player):
 		return
-	if body is Player and body.carried_item is Torch and _has_clear_los_to(body):
-		ignite()
+	var player := body as Player
+	if not _nearby_players.has(player):
+		_nearby_players.append(player)
+	if _try_ignite_from_player(player):
+		return
+	set_physics_process(true)
+
+func _on_body_exited(body: Node3D) -> void:
+	if body is Player:
+		_nearby_players.erase(body as Player)
+		if _nearby_players.is_empty():
+			set_physics_process(false)
+
+func _physics_process(delta: float) -> void:
+	if is_lit:
+		_nearby_players.clear()
+		set_physics_process(false)
+		return
+	if _ignite_request_cooldown > 0.0:
+		_ignite_request_cooldown -= delta
+		return
+	var i := _nearby_players.size() - 1
+	while i >= 0:
+		var p: Player = _nearby_players[i]
+		if not is_instance_valid(p):
+			_nearby_players.remove_at(i)
+		elif _try_ignite_from_player(p):
+			return
+		i -= 1
+	if _nearby_players.is_empty():
+		set_physics_process(false)
+
+func _try_ignite_from_player(player: Player) -> bool:
+	if is_lit or not is_instance_valid(player):
+		return false
+	if player.current_health <= 0:
+		return false
+	if not (player.carried_item is Torch):
+		return false
+	if not _has_clear_los_to(player):
+		return false
+	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
+		if not player.is_local_controlled():
+			return false
+		_ignite_request_cooldown = 0.25
+	ignite()
+	if is_lit:
+		_nearby_players.clear()
+		set_physics_process(false)
+	return true
 
 func _has_clear_los_to(player: Player) -> bool:
 	if not is_instance_valid(player):
@@ -105,6 +154,8 @@ func _do_ignite() -> void:
 	if is_lit:
 		return
 	is_lit = true
+	_nearby_players.clear()
+	set_physics_process(false)
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"brazier_ignite", global_position, 0.94, 1.06, -1.0, 20.0, 5.0)
 	_update_visuals(true)
