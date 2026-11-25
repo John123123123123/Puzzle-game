@@ -22,7 +22,7 @@ func _ready() -> void:
 	_base_cycle_time = cycle_time
 	_base_warning_time = warning_time
 	damage_area.body_entered.connect(_on_body_entered)
-	spikes_mesh.position.y = -0.45
+	spikes_mesh.position.y = -0.82
 
 func apply_coop_difficulty(player_count: int) -> void:
 	_coop_enabled = player_count >= min_players
@@ -31,7 +31,7 @@ func apply_coop_difficulty(player_count: int) -> void:
 		damage_area.set_deferred("monitoring", _coop_enabled)
 	if not _coop_enabled:
 		is_active = false
-		spikes_mesh.position.y = -0.45
+		spikes_mesh.position.y = -0.82
 		return
 	var extra := maxi(0, player_count - 1)
 	cycle_time = maxf(1.45, _base_cycle_time * (1.0 - 0.10 * float(extra)))
@@ -48,8 +48,8 @@ func _physics_process(delta: float) -> void:
 		if is_active:
 			_retract_spikes()
 	elif current_phase < (cycle_time - active_time):
-		# Warning phase: silent visual tremor/peek
-		spikes_mesh.position.y = -0.32 + randf_range(-0.015, 0.015)
+		# Warning phase: silent visual tremor/peek just above grate
+		spikes_mesh.position.y = -0.66 + randf_range(-0.015, 0.015)
 	else:
 		# Thrust up!
 		if not is_active:
@@ -59,8 +59,8 @@ func _thrust_spikes() -> void:
 	is_active = true
 
 	var tween = create_tween()
-	# Fast, violent snap upward with overshoot
-	tween.tween_property(spikes_mesh, "position:y", 0.38, 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Fast snap upward keeping spike bases anchored below the iron grate (zero floating!)
+	tween.tween_property(spikes_mesh, "position:y", 0.02, 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	# Check any players already standing on the trap when it triggers!
 	_check_damage_overlapping()
@@ -68,7 +68,7 @@ func _thrust_spikes() -> void:
 func _retract_spikes() -> void:
 	is_active = false
 	var tween = create_tween()
-	tween.tween_property(spikes_mesh, "position:y", -0.45, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(spikes_mesh, "position:y", -0.82, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 func _check_damage_overlapping() -> void:
 	if not is_instance_valid(damage_area):

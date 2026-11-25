@@ -94,6 +94,6 @@ func _refresh_objective() -> void:
 		var plate_txt := "1/1" if (is_instance_valid(vault_plate) and vault_plate.is_pressed) else "0/1"
 		hud.set_objective("Level 1: Light the Ossuary braziers (%d/2) and place the crate on the crypt plate (%s)!" % [lit_vault_braziers, plate_txt])
 	elif is_instance_valid(gate_room1) and gate_room1.is_open:
-		hud.set_objective("Level 1: Use the shield crate and pull both corridor levers to breach the Ossuary!")
+		hud.set_objective("Level 1: Dodge the spikes and darts and pull both corridor levers to breach the Ossuary!")
 	else:
 		hud.set_objective("Level 1: Light the 3 antechamber braziers (%d/3) to unseal the inner gate!" % lit_entry_braziers)

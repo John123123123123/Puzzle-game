@@ -516,9 +516,6 @@ required_triggers = 1
 
 [node name="Room2" type="Node3D" parent="." unique_id=2111838740]
 
-[node name="ShieldCrate" parent="Room2" instance=ExtResource("18_block")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -9.5)
-
 [node name="Spike1" parent="Room2" unique_id=1022515276 instance=ExtResource("7_spike")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0.1, -12.5)
 cycle_time = 2.6
