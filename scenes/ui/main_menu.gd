@@ -28,6 +28,7 @@ var _title_pulse: float = 0.0
 var _btn_update: Button = null
 var _version_label: Label = null
 var _campaign_summary_label: Label = null
+var _claimed_gamepads: Dictionary[int, int] = {}
 
 func _process(delta: float) -> void:
 	_title_pulse += delta * 2.2
@@ -41,6 +42,7 @@ func _process(delta: float) -> void:
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	player_cards = [card_1, card_2, card_3, card_4]
+	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3, btn_lvl4]
 	for btn in level_buttons:
 		_base_level_labels.append(btn.text)
@@ -58,7 +60,7 @@ func _ready() -> void:
 	set_selected_level(1)
 	_populate_level_progress()
 	if is_instance_valid(SettingsManager):
-		SettingsManager.settings_changed.connect(_populate_level_progress)
+		SettingsManager.settings_changed.connect(_on_settings_changed)
 
 	var vbox := get_node_or_null("VBoxContainer")
 	if vbox:
@@ -261,11 +263,65 @@ func set_player_count(count: int) -> void:
 				status.text = "READY"
 				status.modulate = Color(0.3, 1.0, 0.4)
 		else:
+			_claimed_gamepads.erase(i + 1)
 			card.modulate = Color(0.4, 0.4, 0.4, 0.5)
 			var status = card.get_node_or_null("VBox/StatusLabel")
 			if status:
 				status.text = "INACTIVE"
 				status.modulate = Color(0.7, 0.7, 0.7)
+		_refresh_player_input_label(i + 1)
+
+func _on_settings_changed() -> void:
+	_populate_level_progress()
+	for player in range(1, player_cards.size() + 1):
+		_refresh_player_input_label(player)
+
+func _get_keyboard_movement_label(player: int) -> String:
+	if player > 2:
+		return ""
+	var prefix := "p%d_" % player
+	var codes: Array[int] = []
+	for dir_suffix: String in ["up", "left", "down", "right"]:
+		var action: String = prefix + dir_suffix
+		var kc: int = 0
+		if InputMap.has_action(action):
+			for ev in InputMap.action_get_events(action):
+				if ev is InputEventKey:
+					kc = (ev as InputEventKey).physical_keycode
+					break
+		if kc <= 0:
+			return "WASD" if player == 1 else "Arrows"
+		codes.append(kc)
+	if codes == [KEY_W, KEY_A, KEY_S, KEY_D]:
+		return "WASD"
+	if codes == [KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT]:
+		return "Arrows"
+	var names: Array[String] = []
+	var all_single := true
+	for kc in codes:
+		var key_str := OS.get_keycode_string(kc)
+		if key_str.length() != 1:
+			all_single = false
+		names.append(key_str)
+	return "".join(names) if all_single else "/".join(names)
+
+func _refresh_player_input_label(player: int) -> void:
+	var label: Label = player_cards[player - 1].get_node("VBox/ControlLabel")
+	label.text = ""
+	if player > selected_count:
+		return
+	if _claimed_gamepads.has(player):
+		label.text = "Gamepad %d" % (_claimed_gamepads[player] + 1)
+	elif player == 1 or player == 2:
+		label.text = _get_keyboard_movement_label(player)
+
+func _on_joy_connection_changed(device: int, connected: bool) -> void:
+	if connected:
+		return
+	for player in _claimed_gamepads.keys():
+		if _claimed_gamepads[player] == device:
+			_claimed_gamepads.erase(player)
+			_refresh_player_input_label(player)
 
 func set_selected_level(lvl: int) -> void:
 	selected_level = clampi(lvl, 1, level_buttons.size())
@@ -291,15 +347,39 @@ func _on_start_pressed() -> void:
 	if is_instance_valid(GameManager):
 		GameManager.start_game(selected_count, selected_level)
 
+func _input(event: InputEvent) -> void:
+	if _settings_open or event.is_echo():
+		return
+	var is_gamepad := event is InputEventJoypadButton or event is InputEventJoypadMotion
+	if not is_gamepad and not event is InputEventKey:
+		return
+	for player in range(1, player_cards.size() + 1):
+		var prefix := "p%d_" % player
+		var joins_slot := player > selected_count and event.is_action_pressed(prefix + "interact")
+		if joins_slot:
+			# Handle a join before the focused Start button can consume Enter or A.
+			set_player_count(player)
+			get_viewport().set_input_as_handled()
+		elif player > selected_count or not (
+			event.is_action_pressed(prefix + "interact")
+			or event.is_action_pressed(prefix + "action")
+			or event.is_action_pressed(prefix + "dash")
+			or event.is_action_pressed(prefix + "ping")
+			or event.is_action_pressed(prefix + "up")
+			or event.is_action_pressed(prefix + "down")
+			or event.is_action_pressed(prefix + "left")
+			or event.is_action_pressed(prefix + "right")
+		):
+			continue
+		if is_gamepad:
+			_claimed_gamepads[player] = event.device
+		else:
+			_claimed_gamepads.erase(player)
+		_refresh_player_input_label(player)
+		return
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _settings_open:
 		return
-	if event.is_action_pressed("p2_interact") and selected_count < 2:
-		set_player_count(2)
-	elif event.is_action_pressed("p3_interact") and selected_count < 3:
-		set_player_count(3)
-	elif event.is_action_pressed("p4_interact") and selected_count < 4:
-		set_player_count(4)
-
 	if event.is_action_pressed("ui_accept") and get_viewport().gui_get_focus_owner() == null:
 		_on_start_pressed()
