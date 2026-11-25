@@ -295,6 +295,28 @@ func _generate_procedural_stream(sound_id: StringName) -> AudioStreamWAV:
 				var sub := sin(t * 73.42 * TAU) * 0.35
 				return (bell + sub) * exp(-t * 3.2) * 0.65
 			)
+		&"phase_solar":
+			return _build_wav(0.45, func(t: float) -> float:
+				var fade_in := smoothstep(0.0, 0.06, t)
+				var fade_out := exp(-t * 6.2)
+				var env := fade_in * fade_out
+				# Warm, mellow low-register fifth (A3 220 Hz + E4 329.6 Hz, zero piercing highs)
+				var warm_root := sin(t * 220.0 * TAU) * 0.55
+				var warm_fifth := sin(t * 329.63 * TAU) * 0.28
+				var sub := sin(t * 110.0 * TAU) * 0.22
+				return (warm_root + warm_fifth + sub) * env * 0.42
+			)
+		&"phase_lunar":
+			return _build_wav(0.45, func(t: float) -> float:
+				var fade_in := smoothstep(0.0, 0.06, t)
+				var fade_out := exp(-t * 6.2)
+				var env := fade_in * fade_out
+				# Soft, deep nocturnal fourth/fifth (G3 196 Hz + D4 293.7 Hz)
+				var warm_root := sin(t * 196.0 * TAU) * 0.55
+				var warm_fifth := sin(t * 293.66 * TAU) * 0.26
+				var sub := sin(t * 98.0 * TAU) * 0.24
+				return (warm_root + warm_fifth + sub) * env * 0.42
+			)
 		&"temple_ambient":
 			var wav := _build_wav(4.0, func(t: float) -> float:
 				# Seamless low-frequency temple room tone (integer cycles in 4.0s)

@@ -363,15 +363,15 @@ func _thread_verify_git_status(project_dir: String, target_remote_sha: String) -
 		return
 
 	var status_res := _run_git(project_dir, ["status", "--porcelain"])
-	var dirty := (status_res["code"] == 0 and not str(status_res["output"]).is_empty())
+	var dirty: bool = (int(status_res["code"]) == 0 and not str(status_res["output"]).is_empty())
 
 	var head_res := _run_git(project_dir, ["rev-parse", "HEAD"])
-	var exact_head := str(head_res["output"]).strip_edges() if head_res["code"] == 0 else ""
+	var exact_head: String = str(head_res["output"]).strip_edges() if int(head_res["code"]) == 0 else ""
 
-	var remote_is_ancestor := false
+	var remote_is_ancestor: bool = false
 	if not target_remote_sha.is_empty() and target_remote_sha != exact_head:
 		var anc_res := _run_git(project_dir, ["merge-base", "--is-ancestor", target_remote_sha, "HEAD"])
-		remote_is_ancestor = (anc_res["code"] == 0)
+		remote_is_ancestor = (int(anc_res["code"]) == 0)
 
 	call_deferred("_on_git_verify_done", {
 		"has_git": true,
@@ -425,19 +425,19 @@ func _thread_git_fallback_check(project_dir: String) -> void:
 		return
 
 	var ls_res := _run_git(project_dir, ["ls-remote", "origin", "refs/heads/" + BRANCH])
-	if ls_res["code"] != 0 or str(ls_res["output"]).is_empty():
+	if int(ls_res["code"]) != 0 or str(ls_res["output"]).is_empty():
 		call_deferred("_on_git_fallback_done", {"ok": false, "msg": "Could not reach origin/%s." % BRANCH})
 		return
 
-	var fetched_sha := str(ls_res["output"]).split("\t")[0].split(" ")[0].strip_edges()
+	var fetched_sha: String = str(ls_res["output"]).split("\t")[0].split(" ")[0].strip_edges()
 	var head_res := _run_git(project_dir, ["rev-parse", "HEAD"])
-	var head_sha := str(head_res["output"]).strip_edges() if head_res["code"] == 0 else ""
+	var head_sha: String = str(head_res["output"]).strip_edges() if int(head_res["code"]) == 0 else ""
 	var anc_res := _run_git(project_dir, ["merge-base", "--is-ancestor", fetched_sha, "HEAD"])
 	call_deferred("_on_git_fallback_done", {
 		"ok": true,
 		"remote_sha": fetched_sha,
 		"head_sha": head_sha,
-		"remote_is_ancestor": (anc_res["code"] == 0),
+		"remote_is_ancestor": (int(anc_res["code"]) == 0),
 	})
 
 func _on_git_fallback_done(res: Dictionary) -> void:
@@ -473,12 +473,12 @@ func _on_git_fallback_done(res: Dictionary) -> void:
 func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
 	var logs: Array[String] = []
 	var status_res := _run_git(project_dir, ["status", "--porcelain"])
-	var is_dirty := (status_res["code"] == 0 and not str(status_res["output"]).is_empty())
+	var is_dirty: bool = (int(status_res["code"]) == 0 and not str(status_res["output"]).is_empty())
 
 	if is_dirty and stash_first:
 		logs.append("Stashing local uncommitted edits (git stash push -u)...")
 		var stash_res := _run_git(project_dir, ["stash", "push", "-u", "-m", "Raiders Auto-Updater Backup"])
-		if stash_res["code"] != 0:
+		if int(stash_res["code"]) != 0:
 			call_deferred("_on_git_pull_done", {
 				"ok": false,
 				"logs": logs,
@@ -490,7 +490,7 @@ func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
 
 	logs.append("Fetching latest commits from origin/%s..." % BRANCH)
 	var fetch_res := _run_git(project_dir, ["fetch", "origin", BRANCH])
-	if fetch_res["code"] != 0:
+	if int(fetch_res["code"]) != 0:
 		call_deferred("_on_git_pull_done", {
 			"ok": false,
 			"logs": logs,
@@ -499,9 +499,9 @@ func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
 		return
 
 	var behind_res := _run_git(project_dir, ["rev-list", "HEAD..origin/" + BRANCH, "--count"])
-	var behind_count := int(str(behind_res["output"]).strip_edges()) if behind_res["code"] == 0 else -1
+	var behind_count: int = int(str(behind_res["output"]).strip_edges()) if int(behind_res["code"]) == 0 else -1
 	var new_head_check := _run_git(project_dir, ["rev-parse", "origin/" + BRANCH])
-	var origin_sha := str(new_head_check["output"]).strip_edges() if new_head_check["code"] == 0 else ""
+	var origin_sha: String = str(new_head_check["output"]).strip_edges() if int(new_head_check["code"]) == 0 else ""
 
 	if behind_count == 0:
 		var cur_head := _run_git(project_dir, ["rev-parse", "HEAD"])
@@ -517,7 +517,7 @@ func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
 
 	logs.append("Pulling %s new commit(s) from origin/%s..." % [str(behind_count) if behind_count > 0 else "latest", BRANCH])
 	var pull_res := _run_git(project_dir, ["pull", "--ff-only", "origin", BRANCH])
-	if pull_res["code"] != 0:
+	if int(pull_res["code"]) != 0:
 		if is_dirty:
 			call_deferred("_on_git_pull_done", {
 				"ok": false,
@@ -530,7 +530,7 @@ func _thread_git_pull_update(project_dir: String, stash_first: bool) -> void:
 		# Clean tree with local commits: try clean rebase, abort safely if conflict
 		logs.append("Fast-forward not possible; attempting clean rebase onto origin/%s..." % BRANCH)
 		var rebase_res := _run_git(project_dir, ["pull", "--rebase", "origin", BRANCH])
-		if rebase_res["code"] != 0:
+		if int(rebase_res["code"]) != 0:
 			_run_git(project_dir, ["rebase", "--abort"])
 			call_deferred("_on_git_pull_done", {
 				"ok": false,

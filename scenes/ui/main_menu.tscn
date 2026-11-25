@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/main_menu.gd" id="1_menu"]
 
@@ -60,6 +60,32 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_hover"]
+bg_color = Color(0.95, 0.76, 0.22, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_pressed"]
+bg_color = Color(0.72, 0.54, 0.12, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_focus"]
+bg_color = Color(0.92, 0.72, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.94, 0.65, 0.9)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
 [node name="MainMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -116,35 +142,6 @@ theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
 theme_override_font_sizes/font_size = 18
 text = "SELECT PLAYER COUNT"
 horizontal_alignment = 1
-
-[node name="QuickButtons" type="HBoxContainer" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="Btn1P" type="Button" parent="VBoxContainer/QuickButtons"]
-custom_minimum_size = Vector2(120, 38)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "1 Player"
-
-[node name="Btn2P" type="Button" parent="VBoxContainer/QuickButtons"]
-custom_minimum_size = Vector2(120, 38)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "2 Players"
-
-[node name="Btn3P" type="Button" parent="VBoxContainer/QuickButtons"]
-custom_minimum_size = Vector2(120, 38)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "3 Players"
-
-[node name="Btn4P" type="Button" parent="VBoxContainer/QuickButtons"]
-custom_minimum_size = Vector2(120, 38)
-layout_mode = 2
-theme_override_font_sizes/font_size = 15
-text = "4 Players"
 
 [node name="CountSelector" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -356,6 +353,9 @@ theme_override_colors/font_focus_color = Color(0.05, 0.05, 0.05, 1)
 theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("StyleBoxFlat_start_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_start_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_start_pressed")
+theme_override_styles/focus = SubResource("StyleBoxFlat_start_focus")
 text = "START ADVENTURE"
 
 [node name="FooterHint" type="Label" parent="VBoxContainer"]

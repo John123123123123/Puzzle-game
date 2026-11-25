@@ -42,8 +42,8 @@ float fbm(vec2 p) {
 
 void vertex() {
 	// CylinderMesh has local Y from -jet_height*0.5 to +jet_height*0.5.
-	// In FlameSpinner, transform maps -local Y -> +Z (away from nozzle), so +half_h is at nozzle and -half_h is at tip!
-	float dist01 = clamp((jet_height * 0.5 - VERTEX.y) / max(jet_height, 0.1), 0.0, 1.0);
+	// In FlameSpinner, +local Y points outward along +Z (away from nozzle), so -half_h is at the nozzle and +half_h is at the outer tip!
+	float dist01 = clamp((VERTEX.y + jet_height * 0.5) / max(jet_height, 0.1), 0.0, 1.0);
 	v_along = dist01;
 	v_angle = atan(VERTEX.x, VERTEX.z);
 

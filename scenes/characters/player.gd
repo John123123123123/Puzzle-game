@@ -117,9 +117,10 @@ func _ready() -> void:
 	_whip_ray_query.collide_with_areas = true
 	_whip_ray_query.exclude = [self]
 
-	# Interaction area setup
-	interaction_area.area_entered.connect(_on_interaction_area_entered)
-	interaction_area.area_exited.connect(_on_interaction_area_exited)
+	# Ensure generous interaction sphere so wall levers, crate corners, and floor items are always reachable
+	var ia_col := interaction_area.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if is_instance_valid(ia_col) and ia_col.shape is SphereShape3D:
+		(ia_col.shape as SphereShape3D).radius = 1.65
 
 	# Damage flash light
 	hurt_light = OmniLight3D.new()
@@ -285,10 +286,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		_handle_movement(delta)
 
+	_refresh_best_interactable()
 	_handle_input()
 	move_and_slide()
 	_handle_push_collisions()
 	_update_animation(delta)
+	_refresh_best_interactable()
 	_update_interact_prompt()
 	_broadcast_local_motion(delta)
 
@@ -603,31 +606,85 @@ func use_whip() -> void:
 	if is_whipping:
 		return
 
-	var start_pt = global_position + Vector3(0, 0.95, 0)
-	var forward_dir = mesh_root.global_transform.basis.z.normalized()
+	var forward_dir := Vector3(mesh_root.global_basis.z.x, 0.0, mesh_root.global_basis.z.z)
+	if forward_dir.length_squared() < 0.0001:
+		forward_dir = Vector3.BACK
+	else:
+		forward_dir = forward_dir.normalized()
+
+	var origin_chest := global_position + Vector3(0, 0.95, 0)
+	# Start ray slightly behind chest center so point-blank targets right against the player are never skipped
+	var ray_from := origin_chest - forward_dir * 0.28
 	var max_reach: float = 4.5
-	var target_pt = start_pt + forward_dir * max_reach
+	var target_pt := origin_chest + forward_dir * max_reach
+
+	var excl: Array[RID] = [get_rid()]
+	if is_instance_valid(carried_item):
+		if carried_item is CollisionObject3D:
+			excl.append((carried_item as CollisionObject3D).get_rid())
+		for ch in carried_item.get_children():
+			if ch is CollisionObject3D:
+				excl.append((ch as CollisionObject3D).get_rid())
 
 	var space_state = get_world_3d().direct_space_state
-	_whip_ray_query.from = start_pt
+	_whip_ray_query.from = ray_from
 	_whip_ray_query.to = target_pt
+	_whip_ray_query.exclude = excl
 
 	var result = space_state.intersect_ray(_whip_ray_query)
 	var hit_surface := false
+	var hit_target_obj: Node = null
+
 	if result:
 		hit_surface = true
 		target_pt = result.position
 		var hit_collider = result.collider
-		var target_obj = hit_collider.get_parent() if hit_collider is Area3D else hit_collider
+		hit_target_obj = hit_collider.get_parent() if hit_collider is Area3D else hit_collider
 
-		if target_obj.has_method("on_whipped"):
-			target_obj.on_whipped(self)
-		elif target_obj.has_method("interact") and not (target_obj is PushableBlock or target_obj.is_in_group("pushable")):
-			target_obj.interact(self)
+	# Point-blank fallback: if standing inside an interactable's Area3D (where hit_from_inside=false skips it),
+	# grab the closest whip/interact target directly in front of the player!
+	if hit_target_obj == null or not (hit_target_obj.has_method("on_whipped") or hit_target_obj.has_method("interact")):
+		var close_whip := _find_point_blank_whip_target(forward_dir)
+		if is_instance_valid(close_whip):
+			hit_target_obj = close_whip
+			hit_surface = true
+			target_pt = close_whip.global_position + Vector3(0, 0.75, 0)
 
-	_play_whip_visuals(start_pt, target_pt, hit_surface)
+	if is_instance_valid(hit_target_obj):
+		if hit_target_obj.has_method("on_whipped"):
+			hit_target_obj.on_whipped(self)
+		elif hit_target_obj.has_method("interact") and not (hit_target_obj is PushableBlock or hit_target_obj.is_in_group("pushable")):
+			hit_target_obj.interact(self)
+
+	_play_whip_visuals(origin_chest, target_pt, hit_surface)
 	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
-		_rpc_remote_whip.rpc(start_pt, target_pt, hit_surface)
+		_rpc_remote_whip.rpc(origin_chest, target_pt, hit_surface)
+
+func _find_point_blank_whip_target(forward_dir: Vector3) -> Node3D:
+	if not is_instance_valid(interaction_area):
+		return null
+	var best: Node3D = null
+	var best_score: float = INF
+	for area in interaction_area.get_overlapping_areas():
+		if not is_instance_valid(area):
+			continue
+		var cand := area.get_parent() as Node3D
+		if not is_instance_valid(cand) or cand == self or cand == carried_item:
+			continue
+		if cand is Player and cand.current_health > 0:
+			continue
+		var can_whip := cand.has_method("on_whipped") or (cand.has_method("interact") and not (cand is PushableBlock or cand.is_in_group("pushable")))
+		if not can_whip:
+			continue
+		var to_c := Vector3(cand.global_position.x - global_position.x, 0.0, cand.global_position.z - global_position.z)
+		var dist := to_c.length()
+		var dot := 1.0 if dist < 0.45 else forward_dir.dot(to_c / dist)
+		if dist <= 0.65 or dot >= 0.20:
+			var sc := dist - dot * 0.65
+			if sc < best_score:
+				best_score = sc
+				best = cand
+	return best
 
 func _play_whip_visuals(start_pt: Vector3, target_pt: Vector3, hit_surface: bool = false) -> void:
 	is_whipping = true
@@ -730,6 +787,7 @@ func _do_pick_up_item(item: Node3D) -> void:
 	if not is_instance_valid(item) or carried_item != null:
 		return
 	carried_item = item
+	_set_item_areas_monitorable(item, false)
 	if item.has_method("on_picked_up"):
 		item.on_picked_up(self)
 	item.reparent(carry_slot)
@@ -768,8 +826,18 @@ func _do_drop_item(drop_pos: Vector3) -> void:
 	carried_item = null
 	item.reparent(get_parent())
 	item.global_position = drop_pos
+	_set_item_areas_monitorable(item, true)
 	if item.has_method("on_dropped"):
 		item.on_dropped(self)
+
+func _set_item_areas_monitorable(item: Node3D, enabled: bool) -> void:
+	if not is_instance_valid(item):
+		return
+	if item is Area3D:
+		(item as Area3D).set_deferred("monitorable", enabled)
+	for ch in item.get_children():
+		if ch is Area3D:
+			(ch as Area3D).set_deferred("monitorable", enabled)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_drop(drop_pos: Vector3) -> void:
@@ -1069,18 +1137,76 @@ func _update_interact_prompt() -> void:
 	prompt_label.global_position = target.global_position + Vector3(0, 1.65, 0)
 	prompt_label.visible = true
 
-func _on_interaction_area_entered(area: Area3D) -> void:
-	var target = area.get_parent()
-	if target == self:
-		return
-	if target is Player:
-		if target.current_health <= 0:
-			current_interactable = target
-		return
-	if target and (target.has_method("interact") or target.is_in_group("carryable")):
-		current_interactable = target
-
-func _on_interaction_area_exited(area: Area3D) -> void:
-	var target = area.get_parent()
-	if current_interactable == target:
+func _refresh_best_interactable() -> void:
+	if not is_instance_valid(interaction_area) or current_health <= 0:
 		current_interactable = null
+		return
+
+	var forward := Vector3(mesh_root.global_basis.z.x, 0.0, mesh_root.global_basis.z.z)
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.BACK
+	else:
+		forward = forward.normalized()
+
+	var best_looked: Node3D = null
+	var best_looked_score: float = INF
+	var best_touch: Node3D = null
+	var best_touch_dist: float = INF
+	var best_hint_only: Node3D = null
+	var best_hint_score: float = INF
+
+	for area in interaction_area.get_overlapping_areas():
+		if not is_instance_valid(area):
+			continue
+		var cand := area.get_parent() as Node3D
+		if not is_instance_valid(cand) or cand == self or cand == carried_item or cand == grabbed_block:
+			continue
+
+		if cand is Player:
+			if cand.current_health > 0:
+				continue
+		elif not (cand.has_method("interact") or cand.is_in_group("carryable")):
+			continue
+
+		if carried_item != null and not _can_interact_while_carrying(cand):
+			continue
+
+		# Skip already-completed / inert objects (e.g. lit braziers, smashed urns)
+		if cand is Brazier and cand.is_lit:
+			continue
+		if not cand.is_in_group("carryable") and cand.has_method("get_interact_prompt"):
+			if str(cand.get_interact_prompt()).is_empty():
+				continue
+
+		# Unlit Brazier when NOT holding a torch is informational ("Requires Torch") — never let it block grabbing nearby items/switches!
+		var is_passive_hint := (cand is Brazier and not (carried_item is Torch))
+
+		var to_cand := Vector3(cand.global_position.x - global_position.x, 0.0, cand.global_position.z - global_position.z)
+		var dist := to_cand.length()
+		# At point-blank distance (< 0.55m), player is standing right on/against the object, so never reject due to angle!
+		var dot := 1.0 if dist < 0.55 else forward.dot(to_cand / dist)
+
+		if is_passive_hint:
+			if dist < 0.55 or dot >= -0.15:
+				var h_score := dist - dot * 0.65
+				if h_score < best_hint_score:
+					best_hint_score = h_score
+					best_hint_only = cand
+			continue
+
+		# Forward cone (anything the player is facing, or point-blank < 0.55m): closest + best-aligned wins
+		if dist < 0.55 or dot >= -0.15:
+			var score := dist - dot * 0.72
+			if score < best_looked_score:
+				best_looked_score = score
+				best_looked = cand
+		elif dist < 0.85 and dist < best_touch_dist:
+			best_touch_dist = dist
+			best_touch = cand
+
+	if is_instance_valid(best_looked):
+		current_interactable = best_looked
+	elif is_instance_valid(best_touch):
+		current_interactable = best_touch
+	else:
+		current_interactable = best_hint_only

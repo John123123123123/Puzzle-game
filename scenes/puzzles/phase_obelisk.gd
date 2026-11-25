@@ -17,9 +17,6 @@ var _ring_mat: StandardMaterial3D = null
 var _shaft_mat: ShaderMaterial = null
 var _cooldown: float = 0.0
 var _hover_t: float = 0.0
-var shift_audio: AudioStreamPlayer3D = null
-var solar_sound: AudioStreamWAV = null
-var lunar_sound: AudioStreamWAV = null
 
 const SOLAR_COLOR := Color(1.0, 0.82, 0.22)
 const LUNAR_COLOR := Color(0.22, 0.88, 1.0)
@@ -48,13 +45,6 @@ func _ready() -> void:
 		if rm:
 			_ring_mat = rm.duplicate() as StandardMaterial3D
 			ring_mesh.material_override = _ring_mat
-
-	solar_sound = _create_phase_sound(true)
-	lunar_sound = _create_phase_sound(false)
-	shift_audio = AudioStreamPlayer3D.new()
-	shift_audio.unit_size = 7.0
-	shift_audio.max_distance = 32.0
-	add_child(shift_audio)
 
 	_apply_visual_phase(false)
 
@@ -102,11 +92,9 @@ func _rpc_sync_shift(next_phase: int) -> void:
 	_apply_world_shift(next_phase)
 
 func _apply_world_shift(next_phase: int) -> void:
-
-	if is_instance_valid(shift_audio):
-		shift_audio.stream = solar_sound if next_phase == 0 else lunar_sound
-		shift_audio.pitch_scale = randf_range(0.98, 1.03)
-		shift_audio.play()
+	if is_instance_valid(AudioManager):
+		var sfx_id: StringName = &"phase_solar" if next_phase == 0 else &"phase_lunar"
+		AudioManager.play_sfx_3d(sfx_id, global_position, 0.98, 1.02, -6.0, 26.0, 5.5)
 
 	for cam in get_tree().get_nodes_in_group("coop_camera"):
 		if cam.has_method("trigger_shake"):
@@ -148,23 +136,3 @@ func _apply_visual_phase(animate: bool) -> void:
 				tw.tween_property(crystal_pivot, "scale", Vector3.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		else:
 			beacon_light.light_energy = 2.2
-
-func _create_phase_sound(is_solar: bool) -> AudioStreamWAV:
-	var sample_rate = 22050
-	var duration = 0.36
-	var num_samples = int(sample_rate * duration)
-	var data = PackedByteArray()
-	data.resize(num_samples)
-	for i in range(num_samples):
-		var t = float(i) / float(sample_rate)
-		var env = exp(-t * 6.5) * sin(minf(1.0, t * 55.0) * PI * 0.5)
-		var f1 = 523.25 if is_solar else 440.0
-		var f2 = 783.99 if is_solar else 587.33
-		var sample = (sin(t * f1 * TAU) * 0.55 + sin(t * f2 * TAU) * 0.40) * env
-		data[i] = int(clampi(int((clampf(sample, -1.0, 1.0) * 0.72 + 0.5) * 255.0), 0, 255))
-
-	var stream = AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_8_BITS
-	stream.mix_rate = sample_rate
-	stream.data = data
-	return stream

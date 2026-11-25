@@ -12,12 +12,6 @@ extends Control
 @onready var card_3: PanelContainer = $VBoxContainer/CardsContainer/Card3
 @onready var card_4: PanelContainer = $VBoxContainer/CardsContainer/Card4
 
-# Quick select buttons
-@onready var btn_1p: Button = $VBoxContainer/QuickButtons/Btn1P
-@onready var btn_2p: Button = $VBoxContainer/QuickButtons/Btn2P
-@onready var btn_3p: Button = $VBoxContainer/QuickButtons/Btn3P
-@onready var btn_4p: Button = $VBoxContainer/QuickButtons/Btn4P
-
 # Level selector buttons
 @onready var btn_lvl1: Button = $VBoxContainer/LevelSelector/BtnLvl1
 @onready var btn_lvl2: Button = $VBoxContainer/LevelSelector/BtnLvl2
@@ -53,11 +47,6 @@ func _ready() -> void:
 	btn_minus.pressed.connect(_on_minus_pressed)
 	btn_plus.pressed.connect(_on_plus_pressed)
 	start_button.pressed.connect(_on_start_pressed)
-
-	btn_1p.pressed.connect(func(): set_player_count(1))
-	btn_2p.pressed.connect(func(): set_player_count(2))
-	btn_3p.pressed.connect(func(): set_player_count(3))
-	btn_4p.pressed.connect(func(): set_player_count(4))
 
 	btn_lvl1.pressed.connect(func(): set_selected_level(1))
 	btn_lvl2.pressed.connect(func(): set_selected_level(2))
@@ -129,9 +118,20 @@ func _ready() -> void:
 
 		var btn_settings := Button.new()
 		btn_settings.text = "Settings"
-		btn_settings.custom_minimum_size = Vector2(165, 44)
+		btn_settings.custom_minimum_size = Vector2(150, 44)
 		btn_settings.pressed.connect(func(): _open_settings(btn_settings))
 		action_row.add_child(btn_settings)
+
+		var btn_exit := Button.new()
+		btn_exit.text = "Exit Game"
+		btn_exit.custom_minimum_size = Vector2(140, 44)
+		btn_exit.modulate = Color(1.0, 0.62, 0.62)
+		btn_exit.pressed.connect(func():
+			if is_instance_valid(NetworkManager) and NetworkManager.is_online:
+				NetworkManager.disconnect_session()
+			get_tree().quit()
+		)
+		action_row.add_child(btn_exit)
 
 		vbox.add_child(action_row)
 
