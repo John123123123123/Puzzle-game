@@ -1,7 +1,7 @@
 name: Build main
 
 # Builds the Windows x86-64 standalone package so the in-game updater can update exported
-# builds completely (engine binary, .pck, project settings, scripts, ...).
+# builds completely (engine binary and embedded game files).
 # Pushes to main publish it on the rolling `latest-main` release together with SHA-256 checksums.
 
 on:
@@ -80,13 +80,12 @@ jobs:
           mkdir -p builds/windows dist
           "$GODOT" --headless --path . --export-release "Windows Desktop" builds/windows/RaidersOfTheLostTemple.exe
           test -s builds/windows/RaidersOfTheLostTemple.exe
-          test -s builds/windows/RaidersOfTheLostTemple.pck
 
       - name: Package build
         shell: bash
         run: |
           set -euo pipefail
-          (cd builds/windows && zip -q -r ../../dist/RaidersOfTheLostTemple-windows-x86_64.zip .)
+          (cd builds/windows && zip -q ../../dist/RaidersOfTheLostTemple-windows-x86_64.zip RaidersOfTheLostTemple.exe)
           (cd dist && sha256sum *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
       - name: Write release manifest

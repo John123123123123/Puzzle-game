@@ -10,7 +10,7 @@ extends Node
 ##                        (with rollback), removes deleted files, then re-imports.
 ##   3. STANDALONE_EXPORT Exported build: downloads the full CI build published by the
 ##                        `build-main` GitHub Action (release `latest-main`), verifies its SHA-256,
-##                        stages it next to the game and swaps the executable + .pck on restart.
+##                        stages it next to the game and swaps the build files on restart.
 ##
 ## Private repositories are supported: git uses its own credentials; HTTP modes use (in order)
 ## a token saved in `user://updater_auth.cfg`, `GITHUB_TOKEN` / `GH_TOKEN`, or `gh auth token`.
@@ -356,7 +356,7 @@ func restart_game() -> void:
 		get_tree().quit()
 		return
 
-	if OS.has_feature("standalone"):
+	if OS.has_feature("template"):
 		OS.create_process(exe_path, PackedStringArray())
 	else:
 		OS.create_process(exe_path, PackedStringArray(["--path", _get_project_dir()]))
@@ -389,14 +389,14 @@ func _get_project_dir() -> String:
 	return ProjectSettings.globalize_path("res://").trim_suffix("/").trim_suffix("\\")
 
 func _has_git_dir() -> bool:
-	if OS.has_feature("standalone"):
+	if OS.has_feature("template"):
 		return false
 	var git_path: String = _get_project_dir().path_join(".git")
 	return DirAccess.dir_exists_absolute(git_path) or FileAccess.file_exists(git_path)
 
 func _detect_initial_local_state() -> void:
 	current_git_branch = ""
-	if OS.has_feature("standalone"):
+	if OS.has_feature("template"):
 		install_mode = InstallMode.STANDALONE_EXPORT
 		local_sha = _read_build_info_sha()
 		return
@@ -1354,6 +1354,13 @@ func _launch_standalone_swap(exe_path: String) -> bool:
 			"New-Item -ItemType Directory -Path $backup | Out-Null",
 			"$moved = @(); $placed = @(); $failed = $false",
 			"try {",
+			# An EXE-only update embeds its pack. Back up any old sidecar for rollback.
+			"  $packName = [IO.Path]::GetFileNameWithoutExtension($launch) + '.pck'",
+			"  $oldPack = Join-Path $install $packName",
+			"  if ((Test-Path -LiteralPath $oldPack -PathType Leaf) -and !(Test-Path -LiteralPath (Join-Path $staging $packName))) {",
+			"    Move-Item -LiteralPath $oldPack -Destination (Join-Path $backup $packName) -ErrorAction Stop",
+			"    $moved += $packName",
+			"  }",
 			"  foreach ($item in Get-ChildItem -LiteralPath $staging -Force) {",
 			"    $dest = Join-Path $install $item.Name",
 			"    if (Test-Path -LiteralPath $dest) {",
