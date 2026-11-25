@@ -51,12 +51,12 @@ You can move the ancient sandstone blocks in two smooth ways:
 
 ## ⬇ In-Game Auto-Updater (`main` Branch)
 
-* The Main Menu automatically checks `John123123123123/Puzzle-game` (`main` branch) in the background and highlights **`⬇ Update Available!`** whenever new content is pushed.
+* The Main Menu checks for public updates from `main`. The in-game updater needs no GitHub account or access token. [GitHub repository](https://github.com/John123123123123/Puzzle-game)
 * Click **`⬇ Update Game`** on the Main Menu to view the latest commit message, author, and timestamp, and update in 1 click. Every mode updates the **whole game** (scripts, scenes, shaders, `project.godot`, autoloads, Godot's class/UID caches, and for exported builds the executable itself):
   * **Git Clones (`.git` + `git`):** `git fetch`, then a fast-forward of `main`. It never touches other branches without asking (*Switch to main*), offers to stash local edits, only rebases diverged local commits after confirmation (aborting cleanly on conflict), and finally runs `--headless --import` so new `class_name` scripts and UIDs work on restart.
   * **ZIP-Downloaded Folders (no `git` required):** Downloads the archive **pinned to the checked commit**, rejects unsafe paths, stages everything first, then swaps files in with a backup (full rollback on any failure), removes files deleted upstream, and re-imports the project.
-  * **Standalone Exported Builds:** The `build-main` GitHub Action (`.github/workflows/build-main.yml`) exports the Windows x86-64 package for every push to `main` and publishes it (with SHA-256 checksums) on the `latest-main` release. The updater downloads the package, verifies the checksum, stages it next to the game, and swaps the executable + `.pck` on restart (with rollback). The install folder must be writable.
-  * **Private repository:** Git uses your normal credentials. For ZIP/standalone installs the updater uses a token from `user://updater_auth.cfg`, `GITHUB_TOKEN` / `GH_TOKEN`, or `gh auth token` (the token is only sent to `api.github.com`, never to download redirects). You can also paste one into the updater dialog.
+  * **Standalone Exported Builds:** The `build-main` GitHub Action (`.github/workflows/build-main.yml`) exports the Windows x86-64 package for every push to `main` and publishes it (with SHA-256 checksums) on the `latest-main` release. The updater downloads the package, verifies the checksum, stages it next to the game, and swaps in the single Windows executable with its game files embedded on restart (with rollback). The install folder must be writable.
+* If a ZIP or standalone installation is already up to date, use **Repair installation** to reinstall the current build and keep saved progress and settings.
 * The updater dialog cannot be closed (and levels cannot be started) while an update is being installed.
 * Click **`🚀 Restart Game Now`** after updating to relaunch immediately with all new levels, scripts, and visuals.
 

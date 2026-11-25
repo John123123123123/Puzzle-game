@@ -13,6 +13,8 @@ var _log_box: RichTextLabel = null
 
 var _check_btn: Button = null
 var _update_btn: Button = null
+var _repair_confirmation: ConfirmationDialog = null
+var _repair_sha: String = ""
 var _stash_update_btn: Button = null
 var _switch_update_btn: Button = null
 var _rebase_update_btn: Button = null
@@ -20,8 +22,6 @@ var _restart_btn: Button = null
 var _github_btn: Button = null
 var _close_btn: Button = null
 
-var _token_row: HBoxContainer = null
-var _token_edit: LineEdit = null
 
 func _ready() -> void:
 	layer = 22
@@ -37,8 +37,10 @@ func _ready() -> void:
 			UpdateManager.check_for_updates(true)
 
 	_refresh_ui()
-	if is_instance_valid(_update_btn) and not _update_btn.disabled:
+	if is_instance_valid(UpdateManager) and not _update_btn.disabled and not UpdateManager.can_repair_installation():
 		_update_btn.grab_focus()
+	elif is_instance_valid(_check_btn) and not _check_btn.disabled:
+		_check_btn.grab_focus()
 	elif is_instance_valid(_close_btn):
 		_close_btn.grab_focus()
 
@@ -177,11 +179,19 @@ func _build_ui() -> void:
 	_update_btn.text = "⬇ Update to Latest main"
 	_update_btn.custom_minimum_size = Vector2(215, 42)
 	_update_btn.modulate = Color(0.55, 1.0, 0.65)
-	_update_btn.pressed.connect(func():
-		if is_instance_valid(UpdateManager):
-			UpdateManager.start_update(false)
-	)
+	_update_btn.pressed.connect(_on_update_pressed)
 	primary_row.add_child(_update_btn)
+
+	_repair_confirmation = ConfirmationDialog.new()
+	_repair_confirmation.title = "Repair installation"
+	_repair_confirmation.ok_button_text = "Repair"
+	_repair_confirmation.transient = true
+	_repair_confirmation.exclusive = true
+	_repair_confirmation.confirmed.connect(func():
+		if is_instance_valid(UpdateManager):
+			UpdateManager.start_repair(_repair_sha)
+	)
+	add_child(_repair_confirmation)
 
 	_stash_update_btn = Button.new()
 	_stash_update_btn.text = "📦 Stash Local Edits & Update"
@@ -227,39 +237,6 @@ func _build_ui() -> void:
 	)
 	primary_row.add_child(_restart_btn)
 
-	# Optional access token row (private repositories)
-	_token_row = HBoxContainer.new()
-	_token_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_token_row.add_theme_constant_override("separation", 8)
-	_token_row.visible = false
-	root.add_child(_token_row)
-
-	_token_edit = LineEdit.new()
-	_token_edit.secret = true
-	_token_edit.placeholder_text = "GitHub access token (private repository)"
-	_token_edit.custom_minimum_size = Vector2(340, 34)
-	_token_row.add_child(_token_edit)
-
-	var token_save := Button.new()
-	token_save.text = "Save & Check"
-	token_save.custom_minimum_size = Vector2(120, 34)
-	token_save.pressed.connect(func():
-		if is_instance_valid(UpdateManager) and not _token_edit.text.strip_edges().is_empty():
-			UpdateManager.save_github_token(_token_edit.text)
-			_token_edit.text = ""
-			UpdateManager.check_for_updates(true)
-	)
-	_token_row.add_child(token_save)
-
-	var token_clear := Button.new()
-	token_clear.text = "Clear Token"
-	token_clear.custom_minimum_size = Vector2(110, 34)
-	token_clear.pressed.connect(func():
-		if is_instance_valid(UpdateManager):
-			UpdateManager.clear_github_token()
-	)
-	_token_row.add_child(token_clear)
-
 	# Action Buttons Row 2 (GitHub + Close)
 	var bottom_row := HBoxContainer.new()
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -300,6 +277,17 @@ func _add_kv_row(parent: VBoxContainer, key_text: String) -> Label:
 	row.add_child(v)
 	return v
 
+func _on_update_pressed() -> void:
+	if not is_instance_valid(UpdateManager):
+		return
+	if UpdateManager.can_repair_installation():
+		_repair_sha = UpdateManager.local_sha
+		_repair_confirmation.dialog_text = "Download and reinstall the current build (%s)?\nGame files, including any local edits, will be replaced.\nSaved progress and settings are kept." % UpdateManager.short_sha(_repair_sha)
+		_repair_confirmation.popup_centered()
+		_repair_confirmation.get_cancel_button().grab_focus()
+	else:
+		UpdateManager.start_update()
+
 func _on_log_appended(line: String) -> void:
 	if is_instance_valid(_log_box):
 		_log_box.append_text(line + "\n")
@@ -333,9 +321,7 @@ func _refresh_ui() -> void:
 		_commit_msg_label.text = "Latest on main: —"
 
 	_status_label.text = UpdateManager.status_text
-	if UpdateManager.auth_required:
-		_status_label.modulate = Color(1.0, 0.65, 0.50)
-	elif UpdateManager.restart_recommended:
+	if UpdateManager.restart_recommended:
 		_status_label.modulate = Color(0.45, 1.0, 0.55)
 	elif UpdateManager.needs_stash_confirmation:
 		_status_label.modulate = Color(1.0, 0.82, 0.35)
@@ -348,8 +334,11 @@ func _refresh_ui() -> void:
 
 	var busy := UpdateManager.is_busy
 	_check_btn.disabled = busy
-	_update_btn.disabled = busy
-	if UpdateManager.update_available:
+	_update_btn.disabled = busy or UpdateManager.restart_recommended
+	if UpdateManager.can_repair_installation():
+		_update_btn.text = "Repair installation"
+		_update_btn.modulate = Color(0.82, 0.86, 0.90)
+	elif UpdateManager.update_available:
 		_update_btn.text = "⬇ Update Now (%s)" % UpdateManager.short_sha(UpdateManager.remote_sha)
 		_update_btn.modulate = Color(0.45, 1.0, 0.58)
 	else:
@@ -367,8 +356,6 @@ func _refresh_ui() -> void:
 	_rebase_update_btn.text = "⤴ Stash Edits, Rebase & Update" if UpdateManager.needs_stash_confirmation else "⤴ Rebase Local Commits & Update"
 	if prompt_pending:
 		_status_label.modulate = Color(1.0, 0.82, 0.35)
-
-	_token_row.visible = UpdateManager.auth_required or UpdateManager.has_saved_github_token()
 
 	_restart_btn.visible = UpdateManager.restart_recommended
 	_restart_btn.disabled = busy

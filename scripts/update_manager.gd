@@ -12,9 +12,6 @@ extends Node
 ##                        `build-main` GitHub Action (release `latest-main`), verifies its SHA-256,
 ##                        stages it next to the game and swaps the build files on restart.
 ##
-## Private repositories are supported: git uses its own credentials; HTTP modes use (in order)
-## a token saved in `user://updater_auth.cfg`, `GITHUB_TOKEN` / `GH_TOKEN`, or `gh auth token`.
-## The token is only ever sent to api.github.com (never to redirect targets).
 
 signal state_changed()
 signal log_appended(line: String)
@@ -39,14 +36,12 @@ const GITHUB_WEB_URL: String = "https://github.com/%s/%s" % [REPO_OWNER, REPO_NA
 const MANIFEST_MARKER: String = "RAIDERS_MANIFEST:"
 const ACCEPT_JSON: String = "application/vnd.github+json"
 const ACCEPT_BINARY: String = "application/octet-stream"
-const API_HOST: String = "api.github.com"
 const MAX_REDIRECTS: int = 5
 
 const VERSION_STAMP_PATH: String = "user://installed_update_version.cfg"
 const TEMP_ZIP_PATH: String = "user://github_main_update.zip"
 const LEGACY_LIVE_PATCH_ZIP_PATH: String = "user://live_patch_main.zip"
 const FILE_MANIFEST_PATH: String = "user://installed_files_manifest.txt"
-const AUTH_CFG_PATH: String = "user://updater_auth.cfg"
 const SWAP_SCRIPT_BASENAME: String = "apply_standalone_update"
 const BUILD_INFO_PATH: String = "res://build_info.cfg"
 
@@ -75,7 +70,6 @@ var has_local_changes: bool = false
 var needs_stash_confirmation: bool = false
 var needs_branch_switch_confirmation: bool = false
 var needs_rebase_confirmation: bool = false
-var auth_required: bool = false
 var restart_recommended: bool = false
 var staged_standalone_ready: bool = false
 var status_text: String = "Ready to check main branch for updates."
@@ -91,13 +85,7 @@ var _last_auto_check_msec: int = -999999
 var _api_stage: String = ""
 var _api_redirects: int = 0
 var _zip_redirects: int = 0
-var _zip_accept: String = ACCEPT_BINARY
-var _active_token: String = ""
-var _cli_token: String = ""
-var _cli_token_checked: bool = false
 
-var _release_asset_name: String = ""
-var _release_asset_id: int = 0
 var _release_browser_url: String = ""
 var _release_sha256: String = ""
 
@@ -110,7 +98,7 @@ func _ready() -> void:
 
 	_api_http = HTTPRequest.new()
 	_api_http.timeout = 15.0
-	_api_http.max_redirects = 0 # redirects are followed manually so tokens never leak cross-host
+	_api_http.max_redirects = 0
 	add_child(_api_http)
 	_api_http.request_completed.connect(_on_api_request_completed)
 
@@ -156,24 +144,11 @@ static func is_safe_rel_path(path: String) -> bool:
 			return false
 	return true
 
-static func url_host(url: String) -> String:
-	var scheme_end: int = url.find("://")
-	var rest: String = url.substr(scheme_end + 3) if scheme_end >= 0 else url
-	var slash: int = rest.find("/")
-	var host: String = rest.substr(0, slash) if slash >= 0 else rest
-	if host.contains("@"):
-		host = host.substr(host.rfind("@") + 1)
-	return host.get_slice(":", 0).to_lower()
-
-## Request headers for a URL. The bearer token is attached ONLY for api.github.com.
-static func build_headers(url: String, token: String, accept: String = ACCEPT_JSON) -> PackedStringArray:
-	var headers := PackedStringArray([
+static func build_headers(accept: String = ACCEPT_JSON) -> PackedStringArray:
+	return PackedStringArray([
 		"User-Agent: RaidersOfTheLostTemple-GodotUpdater/2.0",
 		"Accept: " + accept,
 	])
-	if not token.is_empty() and url_host(url) == API_HOST:
-		headers.append("Authorization: Bearer " + token)
-	return headers
 
 static func header_value(headers: PackedStringArray, header_name: String) -> String:
 	var prefix: String = header_name.to_lower() + ":"
@@ -275,21 +250,24 @@ func auto_check_on_menu() -> void:
 	_last_auto_check_msec = now
 	check_for_updates(false)
 
-func has_saved_github_token() -> bool:
-	return not _load_saved_token().is_empty()
+func can_repair_installation() -> bool:
+	if is_busy or restart_recommended or local_sha.is_empty() or local_sha != remote_sha:
+		return false
+	match install_mode:
+		InstallMode.STANDALONE_EXPORT:
+			return not _release_browser_url.is_empty() and not _release_sha256.is_empty()
+		InstallMode.ZIP_PROJECT:
+			return not _has_git_dir()
+	return false
 
-func save_github_token(token: String) -> void:
-	var cfg := ConfigFile.new()
-	cfg.set_value("github", "token", token.strip_edges())
-	cfg.save(AUTH_CFG_PATH)
-	_append_log("GitHub token saved locally (user://updater_auth.cfg).")
-
-func clear_github_token() -> void:
-	if FileAccess.file_exists(AUTH_CFG_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(AUTH_CFG_PATH))
-	_active_token = ""
-	_append_log("Saved GitHub token removed.")
-	state_changed.emit()
+func start_repair(expected_sha: String) -> void:
+	if is_busy:
+		return
+	_detect_initial_local_state()
+	if local_sha != expected_sha or not can_repair_installation():
+		return
+	_append_log("Repairing installation at %s." % short_sha(local_sha))
+	start_update()
 
 func check_for_updates(force_log: bool = true) -> void:
 	if is_busy:
@@ -297,7 +275,6 @@ func check_for_updates(force_log: bool = true) -> void:
 	_detect_initial_local_state()
 	is_checking = true
 	_reset_prompts()
-	auth_required = false
 	update_building = false
 	progress_ratio = 0.15
 	status_text = "Checking GitHub (%s/%s @ %s)..." % [REPO_OWNER, REPO_NAME, BRANCH]
@@ -308,7 +285,7 @@ func check_for_updates(force_log: bool = true) -> void:
 	if install_mode == InstallMode.GIT_REPO:
 		_start_thread(_thread_git_check.bind(_get_project_dir()))
 	else:
-		_begin_http_step("check")
+		_http_check_start()
 
 func start_update(stash_local_changes: bool = false, switch_to_main: bool = false, allow_rebase: bool = false) -> void:
 	if is_busy:
@@ -335,7 +312,7 @@ func start_update(stash_local_changes: bool = false, switch_to_main: bool = fals
 		install_mode = InstallMode.ZIP_PROJECT
 	status_text = "Preparing download..."
 	state_changed.emit()
-	_begin_http_step("install")
+	_http_install_start()
 
 func open_github_page() -> void:
 	OS.shell_open(GITHUB_WEB_URL)
@@ -473,12 +450,6 @@ func _save_stamp_sha(sha: String) -> void:
 	cfg.set_value("version", "updated_at", Time.get_datetime_string_from_system())
 	cfg.save(VERSION_STAMP_PATH)
 
-func _load_saved_token() -> String:
-	var cfg := ConfigFile.new()
-	if cfg.load(AUTH_CFG_PATH) == OK:
-		return str(cfg.get_value("github", "token", "")).strip_edges()
-	return ""
-
 func _ensure_git_cli_available() -> bool:
 	if _git_cli_checked:
 		return _git_cli_available
@@ -540,48 +511,8 @@ func _run_git(project_dir: String, args: Array) -> Dictionary:
 		text = str(out[0]).strip_edges()
 	return {"code": code, "output": text}
 
-func _git_fetch_error(output: String) -> String:
-	var message := output.to_lower()
-	for marker in ["authentication failed", "permission denied", "could not read username", "invalid username", "repository not found", "returned error: 403", "returned error: 401"]:
-		if message.contains(marker):
-			return "Git could not access origin. Check the remote URL and sign in with a Git account or SSH key that can read this repository."
-	return "Git fetch failed: " + output
-
 func _git_ok(project_dir: String, args: Array) -> bool:
 	return int(_run_git(project_dir, args)["code"]) == 0
-
-# ---------------------------------------------------------------------------
-# Token resolution (private repository support) -> then HTTP check / install
-# ---------------------------------------------------------------------------
-
-func _begin_http_step(next_step: String) -> void:
-	var env_tok: String = OS.get_environment("GITHUB_TOKEN").strip_edges()
-	if env_tok.is_empty():
-		env_tok = OS.get_environment("GH_TOKEN").strip_edges()
-	_start_thread(_thread_resolve_token.bind(_load_saved_token(), env_tok, _cli_token_checked, _cli_token, next_step))
-
-func _thread_resolve_token(saved: String, env_tok: String, cli_done: bool, cli_tok: String, next_step: String) -> void:
-	var cli_token: String = cli_tok
-	var token: String = saved
-	if token.is_empty():
-		token = env_tok
-	if token.is_empty():
-		if not cli_done:
-			var out: Array = []
-			var code: int = OS.execute("gh", PackedStringArray(["auth", "token"]), out, true, false)
-			cli_token = str(out[0]).strip_edges() if (code == 0 and not out.is_empty()) else ""
-		token = cli_token
-	call_deferred("_on_token_resolved", token, cli_token, next_step)
-
-func _on_token_resolved(token: String, cli_token: String, next_step: String) -> void:
-	_join_thread()
-	_active_token = token
-	_cli_token = cli_token
-	_cli_token_checked = true
-	if next_step == "install":
-		_http_install_start()
-	else:
-		_http_check_start()
 
 # ---------------------------------------------------------------------------
 # Update check: git
@@ -595,7 +526,7 @@ func _thread_git_check(project_dir: String) -> void:
 
 	var fetch_res: Dictionary = _run_git(project_dir, ["fetch", "origin", BRANCH])
 	if int(fetch_res["code"]) != 0:
-		call_deferred("_on_git_check_done", {"has_git": true, "ok": false, "msg": _git_fetch_error(str(fetch_res["output"]))})
+		call_deferred("_on_git_check_done", {"has_git": true, "ok": false, "msg": "Git fetch failed: " + str(fetch_res["output"])})
 		return
 
 	var head_res: Dictionary = _run_git(project_dir, ["rev-parse", "HEAD"])
@@ -628,7 +559,7 @@ func _on_git_check_done(res: Dictionary) -> void:
 		_git_cli_available = false
 		install_mode = InstallMode.ZIP_PROJECT
 		_append_log("Git CLI not found - checking through the GitHub API instead.")
-		_begin_http_step("check")
+		_http_check_start()
 		return
 
 	_git_cli_checked = true
@@ -683,7 +614,7 @@ func _http_check_start() -> void:
 
 func _api_get(url: String) -> void:
 	_api_redirects = 0
-	var err: int = _api_http.request(url, build_headers(url, _active_token), HTTPClient.METHOD_GET)
+	var err: int = _api_http.request(url, build_headers(), HTTPClient.METHOD_GET)
 	if err != OK:
 		_fail_check("Could not start network request (Error %d)." % err)
 
@@ -695,17 +626,10 @@ func _fail_check(msg: String) -> void:
 	state_changed.emit()
 
 func _github_error(code: int, headers: PackedStringArray) -> String:
-	auth_required = false
 	if code == 429 or (code == 403 and (header_value(headers, "x-ratelimit-remaining") == "0" or not header_value(headers, "retry-after").is_empty())):
 		return "GitHub rate limit reached (HTTP %d). Wait before retrying." % code
-	if code in [401, 403, 404]:
-		auth_required = true
-		var action := "Paste a token below and select Save & Check. It needs Contents read access to %s/%s." % [REPO_OWNER, REPO_NAME]
-		if code == 401:
-			return ("GitHub sign-in required (HTTP 401). " if _active_token.is_empty() else "GitHub rejected the token (HTTP 401). It may have expired or been revoked. ") + action
-		if code == 403:
-			return "GitHub denied access (HTTP 403). " + action
-		return "GitHub could not find the requested item (HTTP 404). It may be missing or private. For a private repository, check your access. " + action
+	if code == 404:
+		return "GitHub could not find the requested commit, release, or download (HTTP 404)."
 	if code == 0:
 		return "No response from GitHub. Check your connection and retry."
 	return "GitHub returned HTTP %d." % code
@@ -715,7 +639,7 @@ func _on_api_request_completed(result: int, response_code: int, headers: PackedS
 		var loc: String = header_value(headers, "location")
 		if not loc.is_empty() and _api_redirects < MAX_REDIRECTS:
 			_api_redirects += 1
-			if _api_http.request(loc, build_headers(loc, _active_token), HTTPClient.METHOD_GET) == OK:
+			if _api_http.request(loc, build_headers(), HTTPClient.METHOD_GET) == OK:
 				return
 		_fail_check("GitHub redirected the request too many times.")
 		return
@@ -782,8 +706,6 @@ func _handle_release_response(result: int, code: int, body: PackedByteArray) -> 
 	var wanted_name: String = str(asset_info.get("name", ""))
 	var wanted_sha256: String = str(asset_info.get("sha256", "")).strip_edges().to_lower()
 
-	_release_asset_name = ""
-	_release_asset_id = 0
 	_release_browser_url = ""
 	var release_assets: Array = dict.get("assets", []) if typeof(dict.get("assets")) == TYPE_ARRAY else []
 	for a in release_assets:
@@ -791,11 +713,9 @@ func _handle_release_response(result: int, code: int, body: PackedByteArray) -> 
 			continue
 		var ad: Dictionary = a
 		if str(ad.get("name", "")) == wanted_name:
-			_release_asset_name = wanted_name
-			_release_asset_id = int(ad.get("id", 0))
 			_release_browser_url = str(ad.get("browser_download_url", ""))
 			break
-	if _release_asset_name.is_empty() or wanted_sha256.is_empty():
+	if _release_browser_url.is_empty() or wanted_sha256.is_empty():
 		_fail_check("The latest build is incomplete (missing %s or its checksum)." % wanted_name)
 		return
 	_release_sha256 = wanted_sha256
@@ -948,7 +868,7 @@ func _do_git_update(project_dir: String, stash_first: bool, switch_to_main: bool
 	logs.append("Fetching latest commits from origin/%s..." % BRANCH)
 	var fetch_res: Dictionary = _run_git(project_dir, ["fetch", "origin", BRANCH])
 	if int(fetch_res["code"]) != 0:
-		return {"ok": false, "logs": logs, "msg": _git_fetch_error(str(fetch_res["output"]))}
+		return {"ok": false, "logs": logs, "msg": "Git fetch failed: " + str(fetch_res["output"])}
 	var origin_res: Dictionary = _run_git(project_dir, ["rev-parse", "origin/" + BRANCH])
 	var origin_sha: String = str(origin_res["output"]).strip_edges() if int(origin_res["code"]) == 0 else ""
 
@@ -1025,38 +945,32 @@ func _do_git_update(project_dir: String, stash_first: bool, switch_to_main: bool
 
 func _http_install_start() -> void:
 	var url: String = ""
-	var accept: String = ACCEPT_BINARY
 	if install_mode == InstallMode.STANDALONE_EXPORT:
-		if _release_asset_name.is_empty() or _release_sha256.is_empty():
+		if _release_browser_url.is_empty() or _release_sha256.is_empty():
 			_fail_install("Press 'Check for Updates' first so the latest build can be located.")
 			return
 		var target: Dictionary = get_standalone_target()
 		if not _dir_is_writable(str(target["install_dir"])):
 			_fail_install("The install folder is not writable: %s. Move the game to a writable folder (or run it with the needed permissions) and retry." % str(target["install_dir"]))
 			return
-		url = _release_browser_url if _active_token.is_empty() else "%s/releases/assets/%d" % [API_BASE, _release_asset_id]
+		url = _release_browser_url
 	else:
 		if remote_sha.is_empty():
 			_fail_install("Press 'Check for Updates' first so the update can be pinned to an exact commit.")
 			return
-		if _active_token.is_empty():
-			url = "https://codeload.github.com/%s/%s/zip/%s" % [REPO_OWNER, REPO_NAME, remote_sha]
-		else:
-			url = "%s/zipball/%s" % [API_BASE, remote_sha]
-			accept = ACCEPT_JSON
+		url = "https://codeload.github.com/%s/%s/zip/%s" % [REPO_OWNER, REPO_NAME, remote_sha]
 
 	if FileAccess.file_exists(TEMP_ZIP_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_ZIP_PATH))
 	is_downloading_zip = true
 	_zip_redirects = 0
-	_zip_accept = accept
 	progress_ratio = 0.08
 	status_text = "Connecting to GitHub..."
 	_append_log("Downloading update...")
 	state_changed.emit()
 
 	_zip_http.download_file = TEMP_ZIP_PATH
-	var err: int = _zip_http.request(url, build_headers(url, _active_token, accept), HTTPClient.METHOD_GET)
+	var err: int = _zip_http.request(url, build_headers(ACCEPT_BINARY), HTTPClient.METHOD_GET)
 	if err != OK:
 		_fail_install("Failed to start the download (Error %d)." % err)
 
@@ -1065,9 +979,7 @@ func _on_zip_download_completed(result: int, response_code: int, headers: Packed
 		var loc: String = header_value(headers, "location")
 		if not loc.is_empty() and _zip_redirects < MAX_REDIRECTS:
 			_zip_redirects += 1
-			# Token is stripped automatically for non-api.github.com hosts.
-			var accept := _zip_accept if url_host(loc) == API_HOST else ACCEPT_BINARY
-			if _zip_http.request(loc, build_headers(loc, _active_token, accept), HTTPClient.METHOD_GET) == OK:
+			if _zip_http.request(loc, build_headers(ACCEPT_BINARY), HTTPClient.METHOD_GET) == OK:
 				return
 		_fail_install("Download failed: too many redirects.")
 		return
