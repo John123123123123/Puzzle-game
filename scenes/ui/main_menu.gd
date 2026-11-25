@@ -157,11 +157,14 @@ func _refresh_update_button() -> void:
 		_version_label.modulate = Color(1.0, 0.90, 0.42) if UpdateManager.update_available else Color(0.88, 0.86, 0.76)
 	if not is_instance_valid(_btn_update) or not is_instance_valid(UpdateManager):
 		return
-	if UpdateManager.restart_recommended:
+	if UpdateManager.is_installing:
+		_btn_update.text = "⏳ Updating..."
+		_btn_update.modulate = Color(1.0, 0.85, 0.4)
+	elif UpdateManager.restart_recommended:
 		_btn_update.text = "🚀 Restart to Finish Update"
 		_btn_update.modulate = Color(0.45, 1.0, 0.55)
 	elif UpdateManager.update_available:
-		_btn_update.text = "⬇ Update Available!"
+		_btn_update.text = "⬇ Update Available!" if not UpdateManager.update_building else "⬇ Update Available (newer build pending)"
 		_btn_update.modulate = Color(0.45, 1.0, 0.58)
 	elif not UpdateManager.remote_sha.is_empty():
 		_btn_update.text = "✓ Up to Date"
@@ -220,6 +223,8 @@ func _populate_level_progress() -> void:
 func _open_online_lobby(return_focus: Button) -> void:
 	if _settings_open:
 		return
+	if is_instance_valid(UpdateManager) and UpdateManager.is_installing:
+		return
 	_settings_open = true
 	var lobby := ONLINE_LOBBY_SCRIPT.new()
 	add_child(lobby)
@@ -277,6 +282,8 @@ func _on_plus_pressed() -> void:
 	set_player_count(selected_count + 1)
 
 func _on_start_pressed() -> void:
+	if is_instance_valid(UpdateManager) and UpdateManager.is_installing:
+		return
 	# Starting from main button runs Local Couch Co-op (close any stale online peer first)
 	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
 		NetworkManager.disconnect_session()

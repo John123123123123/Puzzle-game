@@ -158,6 +158,9 @@ func start_game(selected_players: int, start_level: int = 1) -> void:
 	load_level(start_level)
 
 func load_level(level_num: int) -> void:
+	# Never start a level while the updater is rewriting game files.
+	if is_instance_valid(UpdateManager) and UpdateManager.is_installing:
+		return
 	get_tree().paused = false
 	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
 		if NetworkManager.is_host:

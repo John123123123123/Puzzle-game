@@ -52,10 +52,12 @@ You can move the ancient sandstone blocks in two smooth ways:
 ## ⬇ In-Game Auto-Updater (`main` Branch)
 
 * The Main Menu automatically checks `John123123123123/Puzzle-game` (`main` branch) in the background and highlights **`⬇ Update Available!`** whenever new content is pushed.
-* Click **`⬇ Update Game`** on the Main Menu to view the latest commit message, author, and timestamp, and update in 1 click:
-  * **Git Clones (`.git` + `git`):** Runs a non-blocking `git fetch` & `git pull --ff-only origin main` (and safely offers to stash uncommitted local edits if any exist).
-  * **ZIP-Downloaded Folders (no `git` required):** Downloads the latest `main` archive directly from GitHub and extracts updated files using Godot 4's built-in `ZIPReader`.
-  * **Standalone Exported Builds:** Downloads and mounts a live resource-pack patch (`ZIPPacker` + `load_resource_pack`), plus provides a direct link to the GitHub repository.
+* Click **`⬇ Update Game`** on the Main Menu to view the latest commit message, author, and timestamp, and update in 1 click. Every mode updates the **whole game** (scripts, scenes, shaders, `project.godot`, autoloads, Godot's class/UID caches, and for exported builds the executable itself):
+  * **Git Clones (`.git` + `git`):** `git fetch`, then a fast-forward of `main`. It never touches other branches without asking (*Switch to main*), offers to stash local edits, only rebases diverged local commits after confirmation (aborting cleanly on conflict), and finally runs `--headless --import` so new `class_name` scripts and UIDs work on restart.
+  * **ZIP-Downloaded Folders (no `git` required):** Downloads the archive **pinned to the checked commit**, rejects unsafe paths, stages everything first, then swaps files in with a backup (full rollback on any failure), removes files deleted upstream, and re-imports the project.
+  * **Standalone Exported Builds:** The `build-main` GitHub Action (`.github/workflows/build-main.yml`) exports the Windows x86-64 package for every push to `main` and publishes it (with SHA-256 checksums) on the `latest-main` release. The updater downloads the package, verifies the checksum, stages it next to the game, and swaps the executable + `.pck` on restart (with rollback). The install folder must be writable.
+  * **Private repository:** Git uses your normal credentials. For ZIP/standalone installs the updater uses a token from `user://updater_auth.cfg`, `GITHUB_TOKEN` / `GH_TOKEN`, or `gh auth token` (the token is only sent to `api.github.com`, never to download redirects). You can also paste one into the updater dialog.
+* The updater dialog cannot be closed (and levels cannot be started) while an update is being installed.
 * Click **`🚀 Restart Game Now`** after updating to relaunch immediately with all new levels, scripts, and visuals.
 
 ---
