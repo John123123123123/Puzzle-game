@@ -200,9 +200,19 @@ static func remove_dir_recursive(path: String) -> void:
 		remove_dir_recursive(path.path_join(sub))
 	DirAccess.remove_absolute(path)
 
-static func move_file(src: String, dst: String) -> bool:
-	DirAccess.make_dir_recursive_absolute(dst.get_base_dir())
-	return DirAccess.rename_absolute(src, dst) == OK
+static func move_file(src: String, dst: String) -> Error:
+	var err := DirAccess.make_dir_recursive_absolute(dst.get_base_dir())
+	if err != OK:
+		return err
+	err = DirAccess.rename_absolute(src, dst)
+	# Windows file scanners and other processes can briefly hold a file open.
+	if OS.get_name() == "Windows":
+		for attempt in range(4):
+			if err == OK:
+				break
+			OS.delay_msec(100)
+			err = DirAccess.rename_absolute(src, dst)
+	return err
 
 static func ps_quote(s: String) -> String:
 	return "'" + s.replace("'", "''") + "'"
@@ -1066,15 +1076,20 @@ func _thread_apply_zip_project(zip_abs: String, project_dir: String, manifest_ab
 
 func _do_apply_zip_project(zip_abs: String, project_dir: String, manifest_abs: String, exe_path: String, expected_sha: String) -> Dictionary:
 	var logs: Array[String] = []
+	var staging: String = project_dir.path_join(STAGING_DIR_NAME)
+	var backup: String = project_dir.path_join(BACKUP_DIR_NAME)
+	if DirAccess.dir_exists_absolute(backup):
+		return {"ok": false, "logs": logs, "msg": "A previous update left a backup at %s. Review or recover those files before retrying." % backup}
+
 	var reader := ZIPReader.new()
 	var err: int = reader.open(zip_abs)
 	if err != OK:
 		return {"ok": false, "logs": logs, "msg": "Could not open the downloaded archive (Error %d)." % err}
 
-	var staging: String = project_dir.path_join(STAGING_DIR_NAME)
-	var backup: String = project_dir.path_join(BACKUP_DIR_NAME)
 	remove_dir_recursive(staging)
-	remove_dir_recursive(backup)
+	if DirAccess.dir_exists_absolute(staging):
+		reader.close()
+		return {"ok": false, "logs": logs, "msg": "Could not clear the previous staging folder. Close other programs using it, then retry."}
 	DirAccess.make_dir_recursive_absolute(staging)
 
 	var skip: Array[String] = [".git/", ".godot/", STAGING_DIR_NAME + "/", BACKUP_DIR_NAME + "/"]
@@ -1119,34 +1134,55 @@ func _do_apply_zip_project(zip_abs: String, project_dir: String, manifest_abs: S
 	var backed_up: Array[String] = []
 	var placed: Array[String] = []
 	var failed_rel: String = ""
+	var failed_action: String = ""
 	for rel in new_list:
 		var dest: String = project_dir.path_join(rel)
+		var staged_file: String = staging.path_join(rel)
 		if FileAccess.file_exists(dest):
-			if not move_file(dest, backup.path_join(rel)):
+			var current_hash: String = FileAccess.get_sha256(dest)
+			if not current_hash.is_empty() and current_hash == FileAccess.get_sha256(staged_file):
+				continue
+			err = move_file(dest, backup.path_join(rel))
+			if err != OK:
 				failed_rel = rel
+				failed_action = "back up"
 				break
 			backed_up.append(rel)
-		if not move_file(staging.path_join(rel), dest):
+		err = move_file(staged_file, dest)
+		if err != OK:
 			failed_rel = rel
+			failed_action = "install"
 			break
 		placed.append(rel)
 	if failed_rel.is_empty():
 		for rel in to_delete:
 			var old_abs: String = project_dir.path_join(rel)
 			if FileAccess.file_exists(old_abs):
-				if not move_file(old_abs, backup.path_join(rel)):
+				err = move_file(old_abs, backup.path_join(rel))
+				if err != OK:
 					failed_rel = rel
+					failed_action = "remove"
 					break
 				backed_up.append(rel)
 
 	if not failed_rel.is_empty():
+		var failure: String = "Could not %s %s (%s)." % [failed_action, failed_rel, error_string(err)]
+		var rollback_failed: bool = false
 		for rel in placed:
-			DirAccess.remove_absolute(project_dir.path_join(rel))
+			# Restoring the backup replaces the new file in one move.
+			if not backed_up.has(rel) and DirAccess.remove_absolute(project_dir.path_join(rel)) != OK:
+				logs.append("Could not remove the newly installed file %s." % rel)
+				rollback_failed = true
 		for rel in backed_up:
-			move_file(backup.path_join(rel), project_dir.path_join(rel))
+			var restore_error := move_file(backup.path_join(rel), project_dir.path_join(rel))
+			if restore_error != OK:
+				logs.append("Could not restore %s (%s)." % [rel, error_string(restore_error)])
+				rollback_failed = true
 		remove_dir_recursive(staging)
+		if rollback_failed:
+			return {"ok": false, "logs": logs, "msg": failure + " Rollback was incomplete. Close other programs and check the backup folder: " + backup}
 		remove_dir_recursive(backup)
-		return {"ok": false, "logs": logs, "msg": "Could not replace %s (file locked?). Everything was rolled back - the game is unchanged." % failed_rel}
+		return {"ok": false, "logs": logs, "msg": failure + " The update was rolled back. Close other programs using the game folder and retry."}
 
 	remove_dir_recursive(staging)
 	remove_dir_recursive(backup)
@@ -1160,14 +1196,14 @@ func _do_apply_zip_project(zip_abs: String, project_dir: String, manifest_abs: S
 		mf.close()
 	if not to_delete.is_empty():
 		logs.append("Removed %d deleted/renamed file(s) from the previous version." % to_delete.size())
-	logs.append("Installed %d files." % new_list.size())
+	logs.append("Installed %d files. Kept %d unchanged." % [placed.size(), new_list.size() - placed.size()])
 
 	var imported: bool = _reimport_project(project_dir, exe_path, logs)
 	if not imported:
 		return {"ok": false, "files_updated": true, "new_sha": installed_sha, "logs": logs,
 			"msg": "Files updated, but Godot's cache refresh failed. Open the project once in the Godot editor, then restart."}
 	return {"ok": true, "files_updated": true, "new_sha": installed_sha, "logs": logs,
-		"msg": "✓ Installed %d files from main! Restart the game to apply all changes." % new_list.size()}
+		"msg": "✓ Synced %d files from main! Restart the game to apply all changes." % new_list.size()}
 
 # ---------------------------------------------------------------------------
 # Install: standalone build (verify -> stage -> swap on restart)
