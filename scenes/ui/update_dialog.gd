@@ -14,9 +14,14 @@ var _log_box: RichTextLabel = null
 var _check_btn: Button = null
 var _update_btn: Button = null
 var _stash_update_btn: Button = null
+var _switch_update_btn: Button = null
+var _rebase_update_btn: Button = null
 var _restart_btn: Button = null
 var _github_btn: Button = null
 var _close_btn: Button = null
+
+var _token_row: HBoxContainer = null
+var _token_edit: LineEdit = null
 
 func _ready() -> void:
 	layer = 22
@@ -62,7 +67,7 @@ func _build_ui() -> void:
 	add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(760, 510)
+	panel.custom_minimum_size = Vector2(760, 600)
 	panel.add_theme_stylebox_override("panel", _make_style(Color(0.08, 0.07, 0.11, 0.97), Color(0.92, 0.74, 0.25, 0.95), 3, 14))
 	center.add_child(panel)
 
@@ -189,6 +194,28 @@ func _build_ui() -> void:
 	)
 	primary_row.add_child(_stash_update_btn)
 
+	_switch_update_btn = Button.new()
+	_switch_update_btn.text = "🔀 Switch to main & Update"
+	_switch_update_btn.custom_minimum_size = Vector2(235, 42)
+	_switch_update_btn.modulate = Color(1.0, 0.85, 0.40)
+	_switch_update_btn.visible = false
+	_switch_update_btn.pressed.connect(func():
+		if is_instance_valid(UpdateManager):
+			UpdateManager.start_update(UpdateManager.needs_stash_confirmation, true, false)
+	)
+	primary_row.add_child(_switch_update_btn)
+
+	_rebase_update_btn = Button.new()
+	_rebase_update_btn.text = "⤴ Rebase Local Commits & Update"
+	_rebase_update_btn.custom_minimum_size = Vector2(270, 42)
+	_rebase_update_btn.modulate = Color(1.0, 0.85, 0.40)
+	_rebase_update_btn.visible = false
+	_rebase_update_btn.pressed.connect(func():
+		if is_instance_valid(UpdateManager):
+			UpdateManager.start_update(UpdateManager.needs_stash_confirmation, false, true)
+	)
+	primary_row.add_child(_rebase_update_btn)
+
 	_restart_btn = Button.new()
 	_restart_btn.text = "🚀 Restart Game Now"
 	_restart_btn.custom_minimum_size = Vector2(205, 42)
@@ -199,6 +226,39 @@ func _build_ui() -> void:
 			UpdateManager.restart_game()
 	)
 	primary_row.add_child(_restart_btn)
+
+	# Optional access token row (private repositories)
+	_token_row = HBoxContainer.new()
+	_token_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_token_row.add_theme_constant_override("separation", 8)
+	_token_row.visible = false
+	root.add_child(_token_row)
+
+	_token_edit = LineEdit.new()
+	_token_edit.secret = true
+	_token_edit.placeholder_text = "GitHub access token (private repository)"
+	_token_edit.custom_minimum_size = Vector2(340, 34)
+	_token_row.add_child(_token_edit)
+
+	var token_save := Button.new()
+	token_save.text = "Save & Check"
+	token_save.custom_minimum_size = Vector2(120, 34)
+	token_save.pressed.connect(func():
+		if is_instance_valid(UpdateManager) and not _token_edit.text.strip_edges().is_empty():
+			UpdateManager.save_github_token(_token_edit.text)
+			_token_edit.text = ""
+			UpdateManager.check_for_updates(true)
+	)
+	_token_row.add_child(token_save)
+
+	var token_clear := Button.new()
+	token_clear.text = "Clear Token"
+	token_clear.custom_minimum_size = Vector2(110, 34)
+	token_clear.pressed.connect(func():
+		if is_instance_valid(UpdateManager):
+			UpdateManager.clear_github_token()
+	)
+	_token_row.add_child(token_clear)
 
 	# Action Buttons Row 2 (GitHub + Close)
 	var bottom_row := HBoxContainer.new()
@@ -249,8 +309,8 @@ func _refresh_ui() -> void:
 		return
 
 	_mode_value.text = UpdateManager.get_install_mode_label()
-	if UpdateManager.install_mode == UpdateManager.InstallMode.STANDALONE_EXPORT:
-		_mode_value.text += "  (Note: binary/engine/config updates require downloading a new GitHub build)"
+	if UpdateManager.install_mode == UpdateManager.InstallMode.GIT_REPO and not UpdateManager.current_git_branch.is_empty():
+		_mode_value.text += "  [branch: %s]" % UpdateManager.current_git_branch
 
 	var local_txt := UpdateManager.get_display_version()
 	if UpdateManager.has_local_changes:
@@ -294,17 +354,33 @@ func _refresh_ui() -> void:
 		_update_btn.text = "⬇ Re-Sync with main"
 		_update_btn.modulate = Color(0.82, 0.86, 0.90)
 
-	_stash_update_btn.visible = UpdateManager.needs_stash_confirmation
+	var prompt_pending: bool = UpdateManager.needs_stash_confirmation or UpdateManager.needs_branch_switch_confirmation or UpdateManager.needs_rebase_confirmation
+	_stash_update_btn.visible = UpdateManager.needs_stash_confirmation and not UpdateManager.needs_branch_switch_confirmation and not UpdateManager.needs_rebase_confirmation
 	_stash_update_btn.disabled = busy
+	_switch_update_btn.visible = UpdateManager.needs_branch_switch_confirmation
+	_switch_update_btn.disabled = busy
+	_switch_update_btn.text = "🔀 Stash Edits, Switch to main & Update" if UpdateManager.needs_stash_confirmation else "🔀 Switch to main & Update"
+	_rebase_update_btn.visible = UpdateManager.needs_rebase_confirmation
+	_rebase_update_btn.disabled = busy
+	_rebase_update_btn.text = "⤴ Stash Edits, Rebase & Update" if UpdateManager.needs_stash_confirmation else "⤴ Rebase Local Commits & Update"
+	if prompt_pending:
+		_status_label.modulate = Color(1.0, 0.82, 0.35)
+
+	_token_row.visible = UpdateManager.auth_required or UpdateManager.has_saved_github_token()
 
 	_restart_btn.visible = UpdateManager.restart_recommended
 	_restart_btn.disabled = busy
+	_close_btn.disabled = UpdateManager.is_installing
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
+		if is_instance_valid(UpdateManager) and UpdateManager.is_installing:
+			return # never leave the dialog while game files are being replaced
 		_close()
 
 func _close() -> void:
+	if is_instance_valid(UpdateManager) and UpdateManager.is_installing:
+		return
 	closed.emit()
 	queue_free()

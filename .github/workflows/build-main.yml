@@ -1,0 +1,165 @@
+name: Build main
+
+# Builds full standalone packages (Windows / Linux / macOS) so the in-game updater can
+# update exported builds completely (engine binary, .pck, project settings, scripts, ...).
+# Pushes to main publish them on the rolling `latest-main` release together with SHA-256 checksums.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-main-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Cache Godot downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/godot-${{ env.GODOT_VERSION }}
+          key: godot-${{ env.GODOT_VERSION }}-v1
+
+      - name: Install Godot and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          V="$GODOT_VERSION"
+          D=~/.cache/godot-$V
+          mkdir -p "$D"
+          BASE="https://github.com/godotengine/godot/releases/download/${V}-stable"
+          [ -f "$D/godot.zip" ] || curl -fsSL -o "$D/godot.zip" "$BASE/Godot_v${V}-stable_linux.x86_64.zip"
+          [ -f "$D/templates.tpz" ] || curl -fsSL -o "$D/templates.tpz" "$BASE/Godot_v${V}-stable_export_templates.tpz"
+          curl -fsSL -o "$D/SHA512-SUMS.txt" "$BASE/SHA512-SUMS.txt"
+          for pair in "godot.zip:Godot_v${V}-stable_linux.x86_64.zip" "templates.tpz:Godot_v${V}-stable_export_templates.tpz"; do
+            local_name="${pair%%:*}"; remote_name="${pair##*:}"
+            expected=$(grep " ${remote_name}\$" "$D/SHA512-SUMS.txt" | awk '{print $1}')
+            actual=$(sha512sum "$D/$local_name" | awk '{print $1}')
+            if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+              echo "Checksum mismatch for $remote_name"; exit 1
+            fi
+          done
+          rm -rf "$D/bin" "$D/tpl"
+          unzip -q -o "$D/godot.zip" -d "$D/bin"
+          chmod +x "$D/bin/Godot_v${V}-stable_linux.x86_64"
+          mkdir -p ~/.local/share/godot/export_templates/${V}.stable
+          unzip -q -o "$D/templates.tpz" -d "$D/tpl"
+          cp -r "$D"/tpl/templates/* ~/.local/share/godot/export_templates/${V}.stable/
+          echo "GODOT=$D/bin/Godot_v${V}-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Write build info
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '[build]\n\nsha="%s"\nbuilt_at="%s"\nbranch="main"\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > build_info.cfg
+          cat build_info.cfg
+
+      - name: Import project
+        shell: bash
+        run: |
+          "$GODOT" --headless --path . --import || "$GODOT" --headless --path . --import
+
+      - name: Export all platforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p builds/windows builds/linux builds/macos dist
+          "$GODOT" --headless --path . --export-release "Windows Desktop" builds/windows/RaidersOfTheLostTemple.exe
+          "$GODOT" --headless --path . --export-release "Linux" builds/linux/RaidersOfTheLostTemple.x86_64
+          "$GODOT" --headless --path . --export-release "macOS" builds/macos/RaidersOfTheLostTemple.zip
+          test -s builds/windows/RaidersOfTheLostTemple.exe
+          test -s builds/windows/RaidersOfTheLostTemple.pck
+          test -s builds/linux/RaidersOfTheLostTemple.x86_64
+          test -s builds/linux/RaidersOfTheLostTemple.pck
+          test -s builds/macos/RaidersOfTheLostTemple.zip
+
+      - name: Package builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd builds/windows && zip -q -r ../../dist/RaidersOfTheLostTemple-windows-x86_64.zip .)
+          (cd builds/linux && zip -q -r ../../dist/RaidersOfTheLostTemple-linux-x86_64.zip .)
+          cp builds/macos/RaidersOfTheLostTemple.zip dist/RaidersOfTheLostTemple-macos-universal.zip
+          (cd dist && sha256sum *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Write release manifest
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess
+
+          def sha256(path):
+              h = hashlib.sha256()
+              with open(path, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          def git(fmt):
+              return subprocess.check_output(["git", "log", "-1", "--format=" + fmt]).decode().strip()
+
+          version = "unknown"
+          for line in open("project.godot", encoding="utf-8"):
+              m = re.match(r'config/version="([^"]+)"', line.strip())
+              if m:
+                  version = m.group(1)
+                  break
+
+          names = {
+              "windows": "RaidersOfTheLostTemple-windows-x86_64.zip",
+              "linux": "RaidersOfTheLostTemple-linux-x86_64.zip",
+              "macos": "RaidersOfTheLostTemple-macos-universal.zip",
+          }
+          manifest = {
+              "sha": os.environ["GITHUB_SHA"],
+              "version": version,
+              "message": git("%s").replace("-->", "- ->"),
+              "author": git("%an").replace("-->", "- ->"),
+              "date": git("%cI"),
+              "assets": {k: {"name": n, "sha256": sha256("dist/" + n)} for k, n in names.items()},
+          }
+          with open("dist/release-manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+          notes = "Automated build of `main` at `%s` (v%s).\n\n%s\n\n<!-- RAIDERS_MANIFEST:%s -->\n" % (
+              manifest["sha"][:7], version, manifest["message"], json.dumps(manifest, separators=(",", ":")))
+          with open("dist/RELEASE_NOTES.md", "w", encoding="utf-8") as f:
+              f.write(notes)
+          PY
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: builds-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+      - name: Publish latest-main release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git tag -f latest-main "$GITHUB_SHA"
+          git push -f origin refs/tags/latest-main
+          FILES=(dist/RaidersOfTheLostTemple-windows-x86_64.zip dist/RaidersOfTheLostTemple-linux-x86_64.zip dist/RaidersOfTheLostTemple-macos-universal.zip dist/SHA256SUMS.txt dist/release-manifest.json)
+          if gh release view latest-main >/dev/null 2>&1; then
+            gh release upload latest-main "${FILES[@]}" --clobber
+            gh release edit latest-main --notes-file dist/RELEASE_NOTES.md --prerelease
+          else
+            gh release create latest-main "${FILES[@]}" --title "Latest main build" --notes-file dist/RELEASE_NOTES.md --prerelease --target "$GITHUB_SHA"
+          fi
