@@ -333,7 +333,9 @@ func _refresh_ui() -> void:
 		_commit_msg_label.text = "Latest on main: —"
 
 	_status_label.text = UpdateManager.status_text
-	if UpdateManager.restart_recommended:
+	if UpdateManager.auth_required:
+		_status_label.modulate = Color(1.0, 0.65, 0.50)
+	elif UpdateManager.restart_recommended:
 		_status_label.modulate = Color(0.45, 1.0, 0.55)
 	elif UpdateManager.needs_stash_confirmation:
 		_status_label.modulate = Color(1.0, 0.82, 0.35)

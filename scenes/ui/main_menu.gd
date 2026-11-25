@@ -166,7 +166,7 @@ func _refresh_update_button() -> void:
 	elif UpdateManager.update_available:
 		_btn_update.text = "⬇ Update Available!" if not UpdateManager.update_building else "⬇ Update Available (newer build pending)"
 		_btn_update.modulate = Color(0.45, 1.0, 0.58)
-	elif not UpdateManager.remote_sha.is_empty():
+	elif not UpdateManager.remote_sha.is_empty() and not UpdateManager.local_sha.is_empty():
 		_btn_update.text = "✓ Up to Date"
 		_btn_update.modulate = Color(0.80, 0.92, 0.82)
 	else:

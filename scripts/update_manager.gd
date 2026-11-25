@@ -408,7 +408,8 @@ func _detect_initial_local_state() -> void:
 		current_git_branch = _read_git_branch(_get_project_dir())
 	else:
 		install_mode = InstallMode.ZIP_PROJECT
-		local_sha = _load_saved_stamp_sha()
+		var archive_sha := FileAccess.get_file_as_string("res://archive_commit.txt").strip_edges() if FileAccess.file_exists("res://archive_commit.txt") else ""
+		local_sha = archive_sha if archive_sha.length() == 40 and archive_sha.is_valid_hex_number(false) else _load_saved_stamp_sha()
 
 func _read_build_info_sha() -> String:
 	var cfg := ConfigFile.new()
@@ -459,7 +460,7 @@ func _read_git_head_sha(project_dir: String) -> String:
 
 func _load_saved_stamp_sha() -> String:
 	var cfg := ConfigFile.new()
-	if cfg.load(VERSION_STAMP_PATH) == OK:
+	if cfg.load(VERSION_STAMP_PATH) == OK and cfg.get_value("version", "project_dir", "") == _get_project_dir():
 		return str(cfg.get_value("version", "sha", ""))
 	return ""
 
@@ -468,6 +469,7 @@ func _save_stamp_sha(sha: String) -> void:
 		return
 	var cfg := ConfigFile.new()
 	cfg.set_value("version", "sha", sha)
+	cfg.set_value("version", "project_dir", _get_project_dir())
 	cfg.set_value("version", "updated_at", Time.get_datetime_string_from_system())
 	cfg.save(VERSION_STAMP_PATH)
 
@@ -538,6 +540,13 @@ func _run_git(project_dir: String, args: Array) -> Dictionary:
 		text = str(out[0]).strip_edges()
 	return {"code": code, "output": text}
 
+func _git_fetch_error(output: String) -> String:
+	var message := output.to_lower()
+	for marker in ["authentication failed", "permission denied", "could not read username", "invalid username", "repository not found", "returned error: 403", "returned error: 401"]:
+		if message.contains(marker):
+			return "Git could not access origin. Check the remote URL and sign in with a Git account or SSH key that can read this repository."
+	return "Git fetch failed: " + output
+
 func _git_ok(project_dir: String, args: Array) -> bool:
 	return int(_run_git(project_dir, args)["code"]) == 0
 
@@ -586,7 +595,7 @@ func _thread_git_check(project_dir: String) -> void:
 
 	var fetch_res: Dictionary = _run_git(project_dir, ["fetch", "origin", BRANCH])
 	if int(fetch_res["code"]) != 0:
-		call_deferred("_on_git_check_done", {"has_git": true, "ok": false, "msg": "git fetch failed: " + str(fetch_res["output"])})
+		call_deferred("_on_git_check_done", {"has_git": true, "ok": false, "msg": _git_fetch_error(str(fetch_res["output"]))})
 		return
 
 	var head_res: Dictionary = _run_git(project_dir, ["rev-parse", "HEAD"])
@@ -685,19 +694,21 @@ func _fail_check(msg: String) -> void:
 	_append_log(msg)
 	state_changed.emit()
 
-func _fail_http_check(code: int) -> void:
-	if code == 401 or ((code == 403 or code == 404) and _active_token.is_empty()):
+func _github_error(code: int, headers: PackedStringArray) -> String:
+	auth_required = false
+	if code == 429 or (code == 403 and (header_value(headers, "x-ratelimit-remaining") == "0" or not header_value(headers, "retry-after").is_empty())):
+		return "GitHub rate limit reached (HTTP %d). Wait before retrying." % code
+	if code in [401, 403, 404]:
 		auth_required = true
-		var hint: String = "GitHub returned HTTP %d. If the repository is private, sign in with the GitHub CLI (gh auth login), set GITHUB_TOKEN, or paste a token below." % code
-		if code == 401 and not _active_token.is_empty():
-			hint = "GitHub rejected the access token (HTTP 401). Paste a valid token below."
-		_fail_check(hint)
-	elif code == 404 and install_mode == InstallMode.STANDALONE_EXPORT:
-		_fail_check("No standalone build has been published yet. Builds are produced by GitHub Actions after each push to main.")
-	elif code == 403:
-		_fail_check("GitHub refused the request (HTTP 403) - probably rate limited. Sign in with a token and retry later.")
-	else:
-		_fail_check("Could not reach GitHub (HTTP %d)." % code)
+		var action := "Paste a token below and select Save & Check. It needs Contents read access to %s/%s." % [REPO_OWNER, REPO_NAME]
+		if code == 401:
+			return ("GitHub sign-in required (HTTP 401). " if _active_token.is_empty() else "GitHub rejected the token (HTTP 401). It may have expired or been revoked. ") + action
+		if code == 403:
+			return "GitHub denied access (HTTP 403). " + action
+		return "GitHub could not find the requested item (HTTP 404). It may be missing or private. For a private repository, check your access. " + action
+	if code == 0:
+		return "No response from GitHub. Check your connection and retry."
+	return "GitHub returned HTTP %d." % code
 
 func _on_api_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
 	if response_code in [301, 302, 303, 307, 308]:
@@ -709,6 +720,9 @@ func _on_api_request_completed(result: int, response_code: int, headers: PackedS
 		_fail_check("GitHub redirected the request too many times.")
 		return
 
+	if response_code in [401, 403, 404, 429] and (_api_stage != "building" or response_code != 404):
+		_fail_check(_github_error(response_code, headers))
+		return
 	match _api_stage:
 		"commit":
 			_handle_commit_response(result, response_code, body)
@@ -725,7 +739,7 @@ func _parse_json_dict(body: PackedByteArray) -> Dictionary:
 
 func _handle_commit_response(result: int, code: int, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		_fail_http_check(code)
+		_fail_check(_github_error(code, PackedStringArray()))
 		return
 	var dict: Dictionary = _parse_json_dict(body)
 	if dict.is_empty():
@@ -742,7 +756,7 @@ func _handle_commit_response(result: int, code: int, body: PackedByteArray) -> v
 
 func _handle_release_response(result: int, code: int, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		_fail_http_check(code)
+		_fail_check(_github_error(code, PackedStringArray()))
 		return
 	var dict: Dictionary = _parse_json_dict(body)
 	var body_txt: String = str(dict.get("body", ""))
@@ -816,9 +830,9 @@ func _finalize_http_comparison() -> void:
 		status_text = "✓ Your game is up to date with main (%s)!%s" % [short_sha(remote_sha), building_note]
 		_append_log("Up to date at %s." % short_sha(remote_sha))
 	elif local_sha.is_empty():
-		update_available = true
-		status_text = "Latest on main: %s - click 'Update Now' to sync!%s" % [short_sha(remote_sha), building_note]
-		_append_log("Found main @ %s: \"%s\"" % [short_sha(remote_sha), remote_message])
+		update_available = false
+		status_text = "Installed commit unknown. You can re-sync with main (%s).%s" % [short_sha(remote_sha), building_note]
+		_append_log(status_text)
 	else:
 		update_available = true
 		status_text = "✨ New update available on main (%s → %s)!%s" % [short_sha(local_sha), short_sha(remote_sha), building_note]
@@ -934,7 +948,7 @@ func _do_git_update(project_dir: String, stash_first: bool, switch_to_main: bool
 	logs.append("Fetching latest commits from origin/%s..." % BRANCH)
 	var fetch_res: Dictionary = _run_git(project_dir, ["fetch", "origin", BRANCH])
 	if int(fetch_res["code"]) != 0:
-		return {"ok": false, "logs": logs, "msg": "git fetch failed: " + str(fetch_res["output"])}
+		return {"ok": false, "logs": logs, "msg": _git_fetch_error(str(fetch_res["output"]))}
 	var origin_res: Dictionary = _run_git(project_dir, ["rev-parse", "origin/" + BRANCH])
 	var origin_sha: String = str(origin_res["output"]).strip_edges() if int(origin_res["code"]) == 0 else ""
 
@@ -1029,6 +1043,7 @@ func _http_install_start() -> void:
 			url = "https://codeload.github.com/%s/%s/zip/%s" % [REPO_OWNER, REPO_NAME, remote_sha]
 		else:
 			url = "%s/zipball/%s" % [API_BASE, remote_sha]
+			accept = ACCEPT_JSON
 
 	if FileAccess.file_exists(TEMP_ZIP_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_ZIP_PATH))
@@ -1051,18 +1066,15 @@ func _on_zip_download_completed(result: int, response_code: int, headers: Packed
 		if not loc.is_empty() and _zip_redirects < MAX_REDIRECTS:
 			_zip_redirects += 1
 			# Token is stripped automatically for non-api.github.com hosts.
-			if _zip_http.request(loc, build_headers(loc, _active_token, _zip_accept), HTTPClient.METHOD_GET) == OK:
+			var accept := _zip_accept if url_host(loc) == API_HOST else ACCEPT_BINARY
+			if _zip_http.request(loc, build_headers(loc, _active_token, accept), HTTPClient.METHOD_GET) == OK:
 				return
 		_fail_install("Download failed: too many redirects.")
 		return
 
 	is_downloading_zip = false
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		var hint: String = ""
-		if response_code == 401 or response_code == 404:
-			hint = " (private repository? sign in with a token)"
-			auth_required = _active_token.is_empty()
-		_fail_install("Download failed (HTTP %d)%s." % [response_code, hint])
+		_fail_install("Download failed. " + _github_error(response_code, headers))
 		return
 
 	progress_ratio = 0.9
