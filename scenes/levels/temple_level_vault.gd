@@ -45,6 +45,7 @@ func _ready() -> void:
 	for g in [gate_chamber_2, sanctum_gate, eclipse_gate, observatory_gate]:
 		if is_instance_valid(g):
 			g.door_opened.connect(func(_d): _refresh_objective())
+			g.door_closed.connect(func(_d): _refresh_objective())
 
 	_refresh_objective()
 

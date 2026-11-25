@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
+render_mode blend_mix, depth_prepass_alpha, cull_back, diffuse_burley, specular_schlick_ggx;
 
 // Authentic Egyptian sandstone & sacred bronze palette
 uniform vec3 stone_color : source_color = vec3(0.42, 0.35, 0.27);
@@ -11,6 +11,7 @@ uniform vec3 rune_glow_color : source_color = vec3(1.0, 0.82, 0.35); // Warm sac
 uniform float emission_energy : hint_range(0.0, 10.0) = 3.5;
 uniform float pulse_speed : hint_range(0.5, 6.0) = 2.2;
 uniform float open_glow : hint_range(0.0, 1.0) = 0.0;
+uniform float fade_alpha : hint_range(0.0, 1.0) = 1.0;
 uniform float roughness_stone : hint_range(0.0, 1.0) = 0.86;
 uniform float roughness_bronze : hint_range(0.0, 1.0) = 0.32;
 
@@ -202,6 +203,7 @@ void fragment() {
         ROUGHNESS = roughness;
         METALLIC = metallic;
         SPECULAR = mix(0.15, 0.65, metallic);
-        EMISSION = emission;
+        EMISSION = emission * fade_alpha;
     }
+    ALPHA = fade_alpha;
 }

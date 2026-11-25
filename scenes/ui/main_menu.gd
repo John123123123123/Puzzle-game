@@ -39,6 +39,7 @@ func _process(delta: float) -> void:
 		_btn_update.modulate = Color(0.45 * pulse + 0.15, 1.0, 0.52 * pulse + 0.1)
 
 func _ready() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	player_cards = [card_1, card_2, card_3, card_4]
 	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3, btn_lvl4]
 	for btn in level_buttons:

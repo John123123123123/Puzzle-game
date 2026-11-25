@@ -14,7 +14,6 @@ class_name CoopCamera
 
 var targets: Array[Node3D] = []
 var target_yaw: float = deg_to_rad(45.0)
-var is_mouse_dragging: bool = false
 var shake_offset: Vector3 = Vector3.ZERO
 var _shake_intensity: float = 0.0
 var _shake_timer: float = 0.0
@@ -35,6 +34,25 @@ func _ready() -> void:
 	var motes := TEMPLE_DUST_MOTES.new()
 	motes.position = Vector3(0.0, 2.2, 0.0)
 	add_child(motes)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _exit_tree() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _is_gameplay_mouse_allowed() -> bool:
+	if get_tree().paused:
+		return false
+	var hud := get_tree().get_first_node_in_group("hud")
+	if is_instance_valid(hud) and hud.has_method("is_ui_blocking_gameplay") and hud.is_ui_blocking_gameplay():
+		return false
+	return true
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		if is_inside_tree() and _is_gameplay_mouse_allowed():
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func trigger_shake(intensity: float, duration: float = 0.15) -> void:
 	if is_instance_valid(SettingsManager) and not SettingsManager.camera_shake:
@@ -50,19 +68,24 @@ func unregister_target(target: Node3D) -> void:
 	targets.erase(target)
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Right mouse button orbit
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_RIGHT:
-			is_mouse_dragging = event.pressed
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			target_yaw -= deg_to_rad(15.0)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			target_yaw += deg_to_rad(15.0)
+	if not _is_gameplay_mouse_allowed():
+		return
 
-	elif event is InputEventMouseMotion and is_mouse_dragging:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+				if mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT:
+					Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+					get_viewport().set_input_as_handled()
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				target_yaw -= deg_to_rad(15.0)
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				target_yaw += deg_to_rad(15.0)
+	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := SettingsManager.camera_sensitivity if is_instance_valid(SettingsManager) else 1.0
 		var inv := -1.0 if (is_instance_valid(SettingsManager) and SettingsManager.invert_camera_x) else 1.0
-		target_yaw -= event.relative.x * mouse_sensitivity * sens * inv
+		target_yaw -= (event as InputEventMouseMotion).relative.x * mouse_sensitivity * sens * inv
 
 	# Snap rotation steps
 	if event.is_action_pressed("cam_rotate_left"):
@@ -114,21 +137,18 @@ func _update_tracking(delta: float) -> void:
 	if targets.is_empty():
 		return
 
-	# In online co-op, if our local explorer is downed, smoothly spectate living teammates
-	var active_list: Array[Node3D] = targets
-	if is_instance_valid(NetworkManager) and NetworkManager.is_online:
-		var has_living_local := false
-		for t in targets:
-			if not ("current_health" in t) or t.current_health > 0:
-				has_living_local = true
-				break
-		if not has_living_local:
-			var living_allies: Array[Node3D] = []
+	# Track living explorers (smoothly spectate living teammates if local explorer dies)
+	var active_list: Array[Node3D] = []
+	for t in targets:
+		if not ("current_health" in t) or t.current_health > 0:
+			active_list.append(t)
+	if active_list.is_empty():
+		if is_instance_valid(NetworkManager) and NetworkManager.is_online:
 			for p in get_tree().get_nodes_in_group("player"):
 				if p is Node3D and is_instance_valid(p) and (not ("current_health" in p) or p.current_health > 0):
-					living_allies.append(p)
-			if not living_allies.is_empty():
-				active_list = living_allies
+					active_list.append(p)
+		if active_list.is_empty():
+			active_list = targets
 
 	var min_pos: Vector3 = active_list[0].global_position
 	var max_pos: Vector3 = active_list[0].global_position

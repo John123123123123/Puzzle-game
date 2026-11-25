@@ -81,8 +81,8 @@ func _on_body_exited(body: Node3D) -> void:
 	_update_state()
 
 func _update_state() -> void:
-	# Clean up any destroyed or invalid bodies
-	occupying_bodies = occupying_bodies.filter(func(b): return is_instance_valid(b) and b.is_inside_tree())
+	# Clean up any destroyed, exited, or dead bodies
+	occupying_bodies = occupying_bodies.filter(func(b): return _is_valid_body(b))
 
 	var should_press = occupying_bodies.size() > 0
 

@@ -53,6 +53,7 @@ func _ready() -> void:
 	for g in [gate_room2, gate_room3, gate_room4, gate_room5]:
 		if is_instance_valid(g):
 			g.door_opened.connect(func(_d): _refresh_objective())
+			g.door_closed.connect(func(_d): _refresh_objective())
 
 	_evaluate_trial_mirrors()
 	_refresh_objective()
@@ -78,6 +79,11 @@ func on_difficulty_scaled(party_size: int) -> void:
 	if is_instance_valid(giant_boulder):
 		giant_boulder.roll_speed = 6.4 + 0.4 * float(maxi(0, party_size - 1))
 	_refresh_objective()
+
+func _on_player_died(player: Player) -> void:
+	super._on_player_died(player)
+	if is_escaping:
+		_check_all_players_escaped()
 
 func _physics_process(_delta: float) -> void:
 	if (is_instance_valid(trial_mirror_1) and trial_mirror_1.is_turning) or (is_instance_valid(trial_mirror_2) and trial_mirror_2.is_turning):

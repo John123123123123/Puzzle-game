@@ -1,4 +1,4 @@
-extends Node3D
+extends StaticBody3D
 class_name Brazier
 
 signal lit_state_changed(is_lit: bool)
@@ -56,7 +56,7 @@ func get_interact_prompt_for(player: Player) -> String:
 	return "Requires Torch"
 
 func interact(player: Player) -> void:
-	if not is_lit and is_instance_valid(player) and player.carried_item is Torch:
+	if not is_lit and is_instance_valid(player) and player.carried_item is Torch and _has_clear_los_to(player):
 		ignite()
 
 func on_whipped(_player: Player) -> void:
@@ -65,8 +65,22 @@ func on_whipped(_player: Player) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if is_lit:
 		return
-	if body is Player and body.carried_item is Torch:
+	if body is Player and body.carried_item is Torch and _has_clear_los_to(body):
 		ignite()
+
+func _has_clear_los_to(player: Player) -> bool:
+	if not is_instance_valid(player):
+		return false
+	var space_state := get_world_3d().direct_space_state
+	if space_state == null:
+		return true
+	var from_pos := player.global_position + Vector3(0.0, 0.85, 0.0)
+	var to_pos := global_position + Vector3(0.0, 0.85, 0.0)
+	var rq := PhysicsRayQueryParameters3D.create(from_pos, to_pos, 1)
+	rq.collide_with_areas = false
+	rq.collide_with_bodies = true
+	rq.exclude = [get_rid(), player.get_rid()]
+	return space_state.intersect_ray(rq).is_empty()
 
 func ignite() -> void:
 	if is_lit:

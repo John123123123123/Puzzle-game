@@ -150,7 +150,7 @@ func _update_offscreen_ally_indicators() -> void:
 		var is_offscreen := behind or proj.x < margin_x or proj.x > (vp_size.x - margin_x) or proj.y < margin_y or proj.y > (vp_size.y - margin_y)
 		var is_down := p.current_health <= 0
 
-		if not is_offscreen:
+		if not is_offscreen or is_down:
 			if _ally_badges.has(p.player_id) and is_instance_valid(_ally_badges[p.player_id]):
 				_ally_badges[p.player_id].visible = false
 			continue
@@ -313,7 +313,7 @@ func update_player_health(id: int, new_health: int) -> void:
 
 func _get_heart_string(health: int, max_h: int = 3) -> String:
 	if health <= 0:
-		return "💀 Downed"
+		return "💀 Dead"
 	var s := ""
 	for i in range(max_h):
 		s += "❤️" if i < health else "🖤"
@@ -391,6 +391,7 @@ func show_victory(text: String) -> void:
 func show_level_complete(level_num: int) -> void:
 	if _level_complete_panel:
 		return  # Already showing
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_2d(&"victory_fanfare", 0.99, 1.02, -3.0)
 
@@ -531,6 +532,7 @@ func show_level_complete(level_num: int) -> void:
 func show_game_over() -> void:
 	if _game_over_panel or _level_complete_panel:
 		return
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_2d(&"game_over_toll", 0.98, 1.02, -2.0)
 
@@ -619,6 +621,9 @@ func show_game_over() -> void:
 	else:
 		btn_retry.grab_focus()
 
+func is_ui_blocking_gameplay() -> bool:
+	return _pause_panel != null or _level_complete_panel != null or _game_over_panel != null
+
 ## Toggles the in-game pause menu. Returns true if paused, false if resumed.
 func toggle_pause() -> void:
 	if _level_complete_panel or _game_over_panel:
@@ -630,6 +635,7 @@ func toggle_pause() -> void:
 		_open_pause_menu()
 
 func _open_pause_menu() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_pause_dim = ColorRect.new()
 	_pause_dim.color = Color(0.0, 0.0, 0.0, 0.6)
 	_pause_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -661,7 +667,7 @@ func _open_pause_menu() -> void:
 	title.modulate = Color(1.0, 0.85, 0.25)
 
 	var controls_box := Label.new()
-	controls_box.text = "P1 / Online: WASD + E (Interact) + Space (Whip) + Shift/F (Roll) + G/Tab (Ping)\nP2 (Local): Arrows + Enter (Interact) + R-Shift (Whip) + / (Roll) + . (Ping)\nCamera: Q / R or Right-Click Drag   •   Gamepad Y: Co-op Ping"
+	controls_box.text = "P1 / Online: WASD + E (Interact) + Space (Whip) + Shift/F (Roll) + G/Tab (Ping)\nP2 (Local): Arrows + Enter (Interact) + R-Shift (Whip) + / (Roll) + . (Ping)\nCamera: Q / R or Mouse Look   •   Gamepad Y: Co-op Ping"
 	controls_box.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_box.add_theme_font_size_override("font_size", 14)
 	controls_box.modulate = Color(0.85, 0.85, 0.8)
@@ -708,7 +714,7 @@ func _open_pause_menu() -> void:
 	btn_menu.text = "Back to Menu"
 	btn_menu.custom_minimum_size = Vector2(240, 42)
 	btn_menu.pressed.connect(func():
-		_close_pause_menu()
+		_close_pause_menu(false)
 		if is_instance_valid(GameManager):
 			GameManager.return_to_menu()
 		else:
@@ -730,7 +736,7 @@ func _open_pause_menu() -> void:
 		get_tree().paused = true
 	btn_resume.grab_focus()
 
-func _close_pause_menu() -> void:
+func _close_pause_menu(restore_mouse: bool = true) -> void:
 	if is_instance_valid(_pause_panel):
 		_pause_panel.queue_free()
 	if is_instance_valid(_pause_dim):
@@ -738,6 +744,8 @@ func _close_pause_menu() -> void:
 	_pause_panel = null
 	_pause_dim = null
 	get_tree().paused = false
+	if restore_mouse and _level_complete_panel == null and _game_over_panel == null:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 ## Displays a brief fading controls hint at the bottom of the screen.
 func show_controls_hint(duration: float = 7.5) -> void:
@@ -768,7 +776,7 @@ func show_controls_hint(duration: float = 7.5) -> void:
 	var cam_r := SettingsManager.get_action_key_label("cam_rotate_right") if is_instance_valid(SettingsManager) else "R"
 
 	var lbl := Label.new()
-	lbl.text = "Move: WASD  •  Interact: [%s]  •  Whip: [%s]  •  Roll: [Shift]  •  Ping: [G/Tab]  •  Camera: [%s/%s]" % [interact_key, whip_key, cam_l, cam_r]
+	lbl.text = "Move: WASD  •  Interact: [%s]  •  Whip: [%s]  •  Roll: [Shift]  •  Ping: [G/Tab]  •  Mouse Look / [%s/%s]" % [interact_key, whip_key, cam_l, cam_r]
 	lbl.add_theme_font_size_override("font_size", 16)
 	lbl.modulate = Color(1.0, 0.94, 0.78)
 	pad.add_child(lbl)

@@ -39,6 +39,7 @@ func _ready() -> void:
 	for g in [pharaoh_gate, sanctum_gate, prism_gate]:
 		if is_instance_valid(g):
 			g.door_opened.connect(func(_d): _update_objective())
+			g.door_closed.connect(func(_d): _update_objective())
 
 	spawn_initial_players(get_configured_player_count(1))
 

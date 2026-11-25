@@ -78,7 +78,10 @@ func _rpc_sync_blocks(paths: Array, positions: PackedVector3Array) -> void:
 		if is_instance_valid(node):
 			if node is PushableBlock and is_instance_valid(node.grabbed_by) and node.grabbed_by.is_local_controlled():
 				continue
-			node.global_position = node.global_position.lerp(positions[i], 0.45)
+			if node.global_position.distance_to(positions[i]) > 2.5:
+				node.global_position = positions[i]
+			else:
+				node.global_position = node.global_position.lerp(positions[i], 0.45)
 
 func _announce_level_start() -> void:
 	if is_instance_valid(hud) and hud.has_method("show_chapter_banner"):
@@ -200,20 +203,13 @@ func spawn_player(id: int, pos: Vector3) -> Player:
 	apply_party_difficulty(players.size())
 	return player
 
-func _on_player_died(player: Player) -> void:
+func _on_player_died(_player: Player) -> void:
 	_check_game_over()
 	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
 		return
-	if is_game_over or level_complete or not _has_living_player():
-		return
-	# Respawn fallen co-op player at the latest unlocked gate after 5.5s if not revived on the spot
-	await get_tree().create_timer(5.5).timeout
-	if not is_instance_valid(self) or not is_inside_tree():
-		return
-	if is_game_over or level_complete or not _has_living_player():
-		return
-	if is_instance_valid(player) and player.current_health <= 0:
-		player.respawn_at(latest_checkpoint_pos + Vector3(randf_range(-0.6, 0.6), 0.0, randf_range(-0.6, 0.6)))
+	for exit_node in get_tree().get_nodes_in_group("level_exit"):
+		if is_instance_valid(exit_node) and exit_node.has_method("_evaluate_coop_exit"):
+			exit_node._evaluate_coop_exit()
 
 func _has_living_player() -> bool:
 	for id in players.keys():

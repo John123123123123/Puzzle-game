@@ -17,6 +17,7 @@ shader_parameter/rune_glow_color = Color(1, 0.82, 0.35, 1)
 shader_parameter/emission_energy = 3.5
 shader_parameter/pulse_speed = 2.2
 shader_parameter/open_glow = 0.0
+shader_parameter/fade_alpha = 1.0
 shader_parameter/roughness_stone = 0.86
 shader_parameter/roughness_bronze = 0.32
 

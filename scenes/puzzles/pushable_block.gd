@@ -10,8 +10,10 @@ const CARRY_FOLLOW_SPEED: float = 14.0
 
 var push_velocity: Vector3 = Vector3.ZERO
 var grabbed_by: Player = null
+var initial_spawn_position: Vector3 = Vector3.ZERO
 var spawn_position: Vector3 = Vector3.ZERO
 var _dust_timer: float = 0.0
+var _last_respawn_time: float = -10.0
 
 @onready var mesh_instance: MeshInstance3D = $MeshInstance3D
 
@@ -19,6 +21,7 @@ func _ready() -> void:
 	add_to_group("pushable")
 	add_to_group("interactable")
 	floor_snap_length = 0.16
+	initial_spawn_position = global_position
 	spawn_position = global_position
 
 func get_interact_prompt() -> String:
@@ -160,7 +163,7 @@ func _physics_process(delta: float) -> void:
 		if not is_on_floor():
 			velocity.y -= 19.6 * delta
 		else:
-			velocity.y = 0.0
+			velocity.y = -0.15
 		# Natural push velocity from walking into it
 		velocity.x = push_velocity.x
 		velocity.z = push_velocity.z
@@ -168,21 +171,20 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	# Save safe respawn spot when resting on permanent stone floor (not temporary phase bridges)
-	if grabbed_by == null and is_on_floor():
-		for i in get_slide_collision_count():
-			var col := get_slide_collision(i)
-			var col_body := col.get_collider()
-			if col.get_normal().y > 0.8 and col_body is StaticBody3D and not (col_body is PhasePlatform):
-				spawn_position = global_position
-				break
+	# Save safe respawn spot only when fully supported on permanent stone floor (not temporary phase bridges or edges)
+	if grabbed_by == null and is_on_floor() and _is_position_supported_on_permanent_floor(global_position):
+		spawn_position = global_position
 
-	if is_authority and global_position.y < -4.5:
+	if is_authority and global_position.y < -2.5:
+		var now_sec: float = float(Time.get_ticks_msec()) * 0.001
+		var respawn_target: Vector3 = spawn_position if (now_sec - _last_respawn_time > 3.5 and _is_position_supported_on_permanent_floor(spawn_position)) else initial_spawn_position
+		_last_respawn_time = now_sec
+		spawn_position = respawn_target
 		release()
-		velocity = Vector3.ZERO
-		push_velocity = Vector3.ZERO
-		global_position = spawn_position + Vector3(0.0, 0.25, 0.0)
-		DUST_PUFF.spawn(get_parent(), global_position, 4, 1.0)
+		if is_instance_valid(NetworkManager) and NetworkManager.is_online and NetworkManager.is_host:
+			_rpc_respawn_block.rpc(respawn_target)
+		else:
+			_apply_respawn(respawn_target)
 		return
 
 	if Vector2(velocity.x, velocity.z).length() > 0.6 and is_on_floor():
@@ -192,3 +194,51 @@ func _physics_process(delta: float) -> void:
 			DUST_PUFF.spawn(get_parent(), global_position - Vector3(0, 0.35, 0), 2, 0.85)
 	else:
 		_dust_timer = 0.12
+
+func _is_position_supported_on_permanent_floor(pos: Vector3) -> bool:
+	var space_state := get_world_3d().direct_space_state
+	if space_state == null:
+		return false
+	var offsets: Array[Vector2] = [
+		Vector2.ZERO,
+		Vector2(-0.56, -0.56),
+		Vector2(0.56, -0.56),
+		Vector2(-0.56, 0.56),
+		Vector2(0.56, 0.56),
+	]
+	var excl: Array[RID] = [get_rid()]
+	for off in offsets:
+		var ray_from := pos + Vector3(off.x, 0.4, off.y)
+		var ray_to := pos + Vector3(off.x, -0.6, off.y)
+		var rq := PhysicsRayQueryParameters3D.create(ray_from, ray_to, 1)
+		rq.collide_with_areas = false
+		rq.collide_with_bodies = true
+		rq.exclude = excl
+		var hit: Dictionary = space_state.intersect_ray(rq)
+		if hit.is_empty():
+			return false
+		var col_body: Object = hit["collider"]
+		var hit_normal: Vector3 = hit["normal"]
+		if not (col_body is StaticBody3D) or (col_body is PhasePlatform) or hit_normal.y <= 0.85:
+			return false
+	return true
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_respawn_block(target_pos: Vector3) -> void:
+	_apply_respawn(target_pos)
+
+func _apply_respawn(target_pos: Vector3) -> void:
+	if is_instance_valid(grabbed_by):
+		remove_collision_exception_with(grabbed_by)
+		if grabbed_by.grabbed_block == self:
+			grabbed_by.grabbed_block = null
+	grabbed_by = null
+	velocity = Vector3.ZERO
+	push_velocity = Vector3.ZERO
+	global_position = target_pos + Vector3(0.0, 0.2, 0.0)
+	if is_instance_valid(get_parent()):
+		DUST_PUFF.spawn(get_parent(), global_position, 5, 1.1)
+	if is_instance_valid(mesh_instance):
+		mesh_instance.scale = Vector3(0.15, 0.15, 0.15)
+		var tw := create_tween()
+		tw.tween_property(mesh_instance, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

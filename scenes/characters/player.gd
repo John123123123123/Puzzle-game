@@ -253,9 +253,6 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 
 	if current_health <= 0:
-		var downed_prefix := _get_input_prefix()
-		if InputMap.has_action(downed_prefix + "ping") and Input.is_action_just_pressed(downed_prefix + "ping"):
-			trigger_coop_ping()
 		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 		velocity.z = move_toward(velocity.z, 0.0, friction * delta)
 		move_and_slide()
@@ -613,8 +610,7 @@ func use_whip() -> void:
 		forward_dir = forward_dir.normalized()
 
 	var origin_chest := global_position + Vector3(0, 0.95, 0)
-	# Start ray slightly behind chest center so point-blank targets right against the player are never skipped
-	var ray_from := origin_chest - forward_dir * 0.28
+	var ray_from := origin_chest
 	var max_reach: float = 4.5
 	var target_pt := origin_chest + forward_dir * max_reach
 
@@ -641,6 +637,10 @@ func use_whip() -> void:
 		var hit_collider = result.collider
 		hit_target_obj = hit_collider.get_parent() if hit_collider is Area3D else hit_collider
 
+	if is_instance_valid(hit_target_obj) and (hit_target_obj.has_method("on_whipped") or hit_target_obj.has_method("interact")):
+		if not _has_clear_interact_los(hit_target_obj as Node3D):
+			hit_target_obj = null
+
 	# Point-blank fallback: if standing inside an interactable's Area3D (where hit_from_inside=false skips it),
 	# grab the closest whip/interact target directly in front of the player!
 	if hit_target_obj == null or not (hit_target_obj.has_method("on_whipped") or hit_target_obj.has_method("interact")):
@@ -650,7 +650,7 @@ func use_whip() -> void:
 			hit_surface = true
 			target_pt = close_whip.global_position + Vector3(0, 0.75, 0)
 
-	if is_instance_valid(hit_target_obj):
+	if is_instance_valid(hit_target_obj) and _has_clear_interact_los(hit_target_obj as Node3D):
 		if hit_target_obj.has_method("on_whipped"):
 			hit_target_obj.on_whipped(self)
 		elif hit_target_obj.has_method("interact") and not (hit_target_obj is PushableBlock or hit_target_obj.is_in_group("pushable")):
@@ -671,10 +671,12 @@ func _find_point_blank_whip_target(forward_dir: Vector3) -> Node3D:
 		var cand := area.get_parent() as Node3D
 		if not is_instance_valid(cand) or cand == self or cand == carried_item:
 			continue
-		if cand is Player and cand.current_health > 0:
+		if cand is Player:
 			continue
 		var can_whip := cand.has_method("on_whipped") or (cand.has_method("interact") and not (cand is PushableBlock or cand.is_in_group("pushable")))
 		if not can_whip:
+			continue
+		if not _has_clear_interact_los(cand):
 			continue
 		var to_c := Vector3(cand.global_position.x - global_position.x, 0.0, cand.global_position.z - global_position.z)
 		var dist := to_c.length()
@@ -731,7 +733,7 @@ func _can_interact_while_carrying(target: Node3D) -> bool:
 	if not is_instance_valid(target) or target == carried_item:
 		return false
 	if target is Player:
-		return target != self and target.current_health <= 0
+		return false
 	if target.is_in_group("carryable") or target is PushableBlock or target.is_in_group("pushable"):
 		return false
 	if target is Brazier and target.is_lit:
@@ -739,21 +741,18 @@ func _can_interact_while_carrying(target: Node3D) -> bool:
 	return target.has_method("interact")
 
 func get_interact_prompt() -> String:
-	return "Revive Ally" if current_health <= 0 else ""
+	return ""
 
-func on_whipped(by_player: Player) -> void:
-	if current_health <= 0 and is_instance_valid(by_player) and by_player != self and by_player.current_health > 0:
-		revive_in_place()
+func on_whipped(_by_player: Player) -> void:
+	pass
 
 func interact(by_player: Player = null) -> void:
 	if by_player != null and by_player != self:
-		if current_health <= 0 and by_player.current_health > 0:
-			revive_in_place()
 		return
 
 	# If carrying something (e.g., Torch), prioritize lighting an unlit Brazier or operating a switch
 	if carried_item != null:
-		if _can_interact_while_carrying(current_interactable):
+		if _can_interact_while_carrying(current_interactable) and _has_clear_interact_los(current_interactable):
 			current_interactable.interact(self)
 			interacted.emit()
 			return
@@ -766,7 +765,7 @@ func interact(by_player: Player = null) -> void:
 		return
 
 	# Otherwise, interact with nearby object
-	if is_instance_valid(current_interactable):
+	if is_instance_valid(current_interactable) and _has_clear_interact_los(current_interactable):
 		if current_interactable.is_in_group("carryable"):
 			pick_up_item(current_interactable)
 		elif current_interactable.has_method("interact"):
@@ -1006,7 +1005,11 @@ func _die() -> void:
 	is_staggering = true
 	is_dashing = false
 	if is_instance_valid(revive_area):
-		revive_area.set_deferred("monitorable", true)
+		revive_area.set_deferred("monitorable", false)
+	collision_layer = 0
+	collision_mask = 1
+	if is_instance_valid(prompt_label):
+		prompt_label.visible = false
 
 	if is_instance_valid(AudioManager):
 		AudioManager.play_sfx_3d(&"player_death", global_position, 0.95, 1.05, 0.0, 30.0, 7.0)
@@ -1023,28 +1026,11 @@ func _die() -> void:
 	player_died.emit(self)
 
 func revive_in_place() -> void:
-	if current_health > 0:
-		return
-	if is_instance_valid(NetworkManager) and NetworkManager.is_online and not NetworkManager.is_host:
-		_rpc_request_revive.rpc_id(1)
-		return
-	respawn_at(global_position + Vector3(0.0, 0.1, 0.0))
-	if is_instance_valid(AudioManager):
-		AudioManager.play_sfx_3d(&"scarab_pickup", global_position, 0.90, 0.96, -3.0, 22.0, 5.0)
-	if is_instance_valid(hurt_light):
-		hurt_light.light_color = Color(0.25, 1.0, 0.50)
-		hurt_light.light_energy = 3.5
-		var tw := create_tween()
-		tw.tween_property(hurt_light, "light_energy", 0.0, 0.45)
-		tw.chain().tween_callback(func():
-			if is_instance_valid(hurt_light):
-				hurt_light.light_color = Color(1.0, 0.15, 0.15)
-		)
+	return
 
 @rpc("any_peer", "reliable")
 func _rpc_request_revive() -> void:
-	if is_instance_valid(NetworkManager) and NetworkManager.is_host and current_health <= 0:
-		revive_in_place()
+	return
 
 @rpc("authority", "reliable")
 func _rpc_sync_health_event(next_h: int, kind: int, pos: Vector3) -> void:
@@ -1137,6 +1123,44 @@ func _update_interact_prompt() -> void:
 	prompt_label.global_position = target.global_position + Vector3(0, 1.65, 0)
 	prompt_label.visible = true
 
+func _has_clear_interact_los(target: Node3D) -> bool:
+	if not is_instance_valid(target):
+		return false
+	var space_state := get_world_3d().direct_space_state
+	if space_state == null:
+		return true
+	var from_pos: Vector3 = global_position + Vector3(0.0, 0.85, 0.0)
+	var to_pos: Vector3
+	if target is WallLever:
+		var lever_fwd := Vector3(target.global_basis.z.x, 0.0, target.global_basis.z.z)
+		if lever_fwd.length_squared() > 0.0001:
+			lever_fwd = lever_fwd.normalized()
+		to_pos = target.global_position + lever_fwd * 0.32 + Vector3(0.0, 0.45, 0.0)
+	elif target is Torch or target is GoldenIdol:
+		to_pos = target.global_position + Vector3(0.0, 0.45, 0.0)
+	else:
+		to_pos = target.global_position + Vector3(0.0, 0.75, 0.0)
+	if from_pos.distance_squared_to(to_pos) < 0.04:
+		return true
+	var rq := PhysicsRayQueryParameters3D.create(from_pos, to_pos, 1)
+	rq.collide_with_areas = false
+	rq.collide_with_bodies = true
+	var excl: Array[RID] = [get_rid()]
+	if target is CollisionObject3D:
+		excl.append((target as CollisionObject3D).get_rid())
+	if is_instance_valid(carried_item):
+		if carried_item is CollisionObject3D:
+			excl.append((carried_item as CollisionObject3D).get_rid())
+		for ch in carried_item.get_children():
+			if ch is CollisionObject3D:
+				excl.append((ch as CollisionObject3D).get_rid())
+	rq.exclude = excl
+	var hit: Dictionary = space_state.intersect_ray(rq)
+	if hit.is_empty():
+		return true
+	var col: Node = hit["collider"] as Node
+	return col == target or (is_instance_valid(col) and target.is_ancestor_of(col))
+
 func _refresh_best_interactable() -> void:
 	if not is_instance_valid(interaction_area) or current_health <= 0:
 		current_interactable = null
@@ -1163,8 +1187,7 @@ func _refresh_best_interactable() -> void:
 			continue
 
 		if cand is Player:
-			if cand.current_health > 0:
-				continue
+			continue
 		elif not (cand.has_method("interact") or cand.is_in_group("carryable")):
 			continue
 
@@ -1177,6 +1200,8 @@ func _refresh_best_interactable() -> void:
 		if not cand.is_in_group("carryable") and cand.has_method("get_interact_prompt"):
 			if str(cand.get_interact_prompt()).is_empty():
 				continue
+		if not _has_clear_interact_los(cand):
+			continue
 
 		# Unlit Brazier when NOT holding a torch is informational ("Requires Torch") — never let it block grabbing nearby items/switches!
 		var is_passive_hint := (cand is Brazier and not (carried_item is Torch))

@@ -41,6 +41,7 @@ func _ready() -> void:
 	for gate in [gate_room1, gate_room2, gate_room3, gate_room4]:
 		if is_instance_valid(gate):
 			gate.door_opened.connect(func(_d): _refresh_objective())
+			gate.door_closed.connect(func(_d): _refresh_objective())
 
 	if is_instance_valid(brazier_4):
 		brazier_4.lit_state_changed.connect(_on_vault_brazier_lit)
