@@ -135,18 +135,28 @@ void fragment() {
         float rune_mask = 0.0;
         vec2 slope = vec2(0.0);
 
-        // Outer frame shading
+        // Outer frame shading + carved hieroglyph cartouche strips
         if (is_frame) {
             col = mix(col, stone_highlight, outer_bevel * 0.5);
             col = mix(col, stone_dark * 0.6, inner_step * 0.7);
+            float cartouche_band = step(0.11, dist_m.x) * step(dist_m.x, 0.25) * step(0.45, dist_m.y);
+            float glyph_tick = step(0.42, sin(uv.y * 54.0 + hash21(vec2(floor(uv.y * 16.0), step(0.5, uv.x))) * 4.0));
+            float glyph_edge = cartouche_band * glyph_tick;
+            col = mix(col, bronze_trim * 0.92, glyph_edge * 0.65);
+            rune_mask = max(rune_mask, glyph_edge * (0.28 + 0.55 * open_glow));
             vec2 dir_from_center = normalize(uv - vec2(0.5));
             slope = dir_from_center * (outer_bevel * 0.4 - inner_step * 0.35);
         } else {
-            // Horizontal mortar grooves between stone blocks
+            // Horizontal mortar grooves between stone blocks + glowing activation energy veins
             if (is_block_seam) {
                 col = stone_dark * 0.65;
                 roughness = 0.96;
                 slope.y = (tier_f < 0.5 ? -1.0 : 1.0) * 0.35;
+                rune_mask = max(rune_mask, (0.08 + 0.82 * open_glow) * smoothstep(1.9, 0.4, r));
+            }
+            float vein_wave = abs(abs(p.x) * 0.55 - abs(p.y));
+            if (r > 0.95 && r < 1.85 && vein_wave < 0.045) {
+                rune_mask = max(rune_mask, 0.14 + 0.86 * open_glow);
             }
 
             // Ambient shadow from outer frame

@@ -24,6 +24,9 @@ var _dash_cooldown: float = 0.0
 var _dash_dir: Vector3 = Vector3.ZERO
 var _ping_cooldown: float = 0.0
 var _haste_timer: float = 0.0
+var _env_speed_mult: float = 1.0
+var _env_push_vel: Vector3 = Vector3.ZERO
+var _env_sink_y: float = 0.0
 
 const WHIP_SCENE: PackedScene = preload("res://scenes/characters/whip_effect.tscn")
 const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
@@ -259,7 +262,7 @@ func _physics_process(delta: float) -> void:
 		_broadcast_local_motion(delta)
 		return
 
-	# Chasm fall safety: damage 1 HP and return to latest checkpoint
+	# Chasm fall safety: damage 1 HP and return to the start of the current room
 	if global_position.y < -5.5:
 		if not is_instance_valid(NetworkManager) or not NetworkManager.is_online or NetworkManager.is_host:
 			take_damage(1)
@@ -268,9 +271,11 @@ func _physics_process(delta: float) -> void:
 		if current_health > 0:
 			velocity = Vector3.ZERO
 			var respawn_pos := Vector3(0.0, 0.4, 4.0)
-			var parent_lvl := get_parent()
-			if is_instance_valid(parent_lvl) and "latest_checkpoint_pos" in parent_lvl:
-				respawn_pos = parent_lvl.latest_checkpoint_pos + Vector3(0.0, 0.3, 0.0)
+			var lvl := _find_temple_level()
+			if is_instance_valid(lvl) and lvl.has_method("get_room_respawn_pos"):
+				respawn_pos = lvl.get_room_respawn_pos(global_position)
+			elif is_instance_valid(lvl) and "latest_checkpoint_pos" in lvl:
+				respawn_pos = lvl.latest_checkpoint_pos + Vector3(0.0, 0.3, 0.0)
 			global_position = respawn_pos
 		return
 
@@ -282,15 +287,38 @@ func _physics_process(delta: float) -> void:
 			is_dashing = false
 	else:
 		_handle_movement(delta)
+		velocity.x += _env_push_vel.x
+		velocity.z += _env_push_vel.z
+
+	if not is_staggering and current_health > 0 and is_instance_valid(mesh_root):
+		mesh_root.position.y = lerpf(mesh_root.position.y, -_env_sink_y, minf(1.0, 12.0 * delta))
 
 	_refresh_best_interactable()
 	_handle_input()
 	move_and_slide()
+	_env_speed_mult = 1.0
+	_env_push_vel = Vector3.ZERO
+	_env_sink_y = 0.0
 	_handle_push_collisions()
 	_update_animation(delta)
 	_refresh_best_interactable()
 	_update_interact_prompt()
 	_broadcast_local_motion(delta)
+
+func apply_environment_effect(speed_mult: float, push_vel: Vector3, sink_y: float = 0.0) -> void:
+	_env_speed_mult = minf(_env_speed_mult, clampf(speed_mult, 0.15, 1.0))
+	_env_push_vel += Vector3(push_vel.x, 0.0, push_vel.z)
+	_env_sink_y = maxf(_env_sink_y, sink_y)
+
+func _find_temple_level() -> Node:
+	var n: Node = get_parent()
+	while is_instance_valid(n):
+		if n.has_method("get_room_respawn_pos"):
+			return n
+		n = n.get_parent()
+	if is_instance_valid(get_tree()) and is_instance_valid(get_tree().current_scene):
+		return get_tree().current_scene
+	return null
 
 func _broadcast_local_motion(delta: float) -> void:
 	if not is_instance_valid(NetworkManager) or not NetworkManager.is_online:
@@ -319,6 +347,10 @@ func _handle_push_collisions() -> void:
 		var col = get_slide_collision(i)
 		var collider = col.get_collider()
 		if collider is PushableBlock or (collider and collider.is_in_group("pushable")):
+			if col.get_normal().y > 0.45:
+				continue
+			if collider is PushableBlock and collider.is_floating:
+				continue
 			var push_dir = -col.get_normal()
 			push_dir.y = 0.0
 			if push_dir.length_squared() > 0.01:
@@ -357,7 +389,7 @@ func _handle_movement(delta: float) -> void:
 	var move_dir = (cam_right * input_dir.x + cam_forward * -input_dir.y).normalized()
 
 	if move_dir.length() > 0.05:
-		var active_speed := speed * (1.24 if _haste_timer > 0.0 else 1.0)
+		var active_speed := speed * (1.24 if _haste_timer > 0.0 else 1.0) * _env_speed_mult
 		velocity.x = move_toward(velocity.x, move_dir.x * active_speed, acceleration * delta)
 		velocity.z = move_toward(velocity.z, move_dir.z * active_speed, acceleration * delta)
 

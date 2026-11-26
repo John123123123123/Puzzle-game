@@ -91,6 +91,10 @@ material = SubResource("StandardMaterial3D_bronze")
 radius = 0.082
 height = 0.164
 
+[sub_resource type="BoxMesh" id="BoxMesh_cornice"]
+material = SubResource("StandardMaterial3D_bronze")
+size = Vector3(0.58, 0.055, 0.19)
+
 [sub_resource type="TorusMesh" id="TorusMesh_bezel"]
 material = SubResource("StandardMaterial3D_bronze")
 inner_radius = 0.065
@@ -105,6 +109,17 @@ roughness = 0.15
 emission_enabled = true
 emission = Color(0.95, 0.25, 0.15, 1)
 emission_energy_multiplier = 2.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_rune_channel"]
+material = SubResource("StandardMaterial3D_rune")
+size = Vector3(0.032, 0.42, 0.025)
+
+[sub_resource type="SphereMesh" id="SphereMesh_knob_gem"]
+material = SubResource("StandardMaterial3D_rune")
+radius = 0.04
+height = 0.065
+radial_segments = 10
+rings = 6
 
 [sub_resource type="SphereMesh" id="SphereMesh_gem"]
 material = SubResource("StandardMaterial3D_rune")
@@ -127,6 +142,22 @@ shape = SubResource("BoxShape3D_interact")
 [node name="Base" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48, 0.075)
 mesh = SubResource("BoxMesh_base")
+
+[node name="CorniceTop" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.425, 0.015)
+mesh = SubResource("BoxMesh_cornice")
+
+[node name="CorniceBot" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.425, 0.015)
+mesh = SubResource("BoxMesh_cornice")
+
+[node name="RuneChannelL" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.20, -0.06, 0.082)
+mesh = SubResource("BoxMesh_rune_channel")
+
+[node name="RuneChannelR" type="MeshInstance3D" parent="Base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.20, -0.06, 0.082)
+mesh = SubResource("BoxMesh_rune_channel")
 
 [node name="IronHousing" type="MeshInstance3D" parent="Base"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0.075)
@@ -181,6 +212,10 @@ mesh = SubResource("CylinderMesh_grip")
 [node name="Knob" type="MeshInstance3D" parent="Base/HandlePivot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
 mesh = SubResource("SphereMesh_knob")
+
+[node name="KnobGem" type="MeshInstance3D" parent="Base/HandlePivot/Knob"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.058, 0)
+mesh = SubResource("SphereMesh_knob_gem")
 
 [node name="GemBezel" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0.76, 0.155)

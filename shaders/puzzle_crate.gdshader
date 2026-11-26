@@ -13,6 +13,8 @@ uniform float brace_width : hint_range(0.02, 0.10) = 0.045;
 uniform float corner_size : hint_range(0.08, 0.25) = 0.15;
 uniform float roughness_wood : hint_range(0.0, 1.0) = 0.78;
 uniform float roughness_metal : hint_range(0.0, 1.0) = 0.42;
+uniform float grab_glow : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 rune_color : source_color = vec3(1.0, 0.78, 0.25);
 
 varying vec3 v_local_pos;
 varying vec3 v_local_normal;
@@ -197,8 +199,22 @@ void fragment() {
     vec3 view_perturbation = mat3(VIEW_MATRIX) * world_bump;
     NORMAL = normalize(NORMAL + view_perturbation);
 
+    // Carved centered Egyptian diamond-sun medallion + subtle grab rune glow
+    vec2 c_uv = abs(uv - vec2(0.5));
+    float dia_dist = c_uv.x + c_uv.y;
+    float outer_dia = (1.0 - smoothstep(0.008, 0.020, abs(dia_dist - 0.165))) * step(0.08, dia_dist);
+    float inner_dot = 1.0 - smoothstep(0.045, 0.065, length(uv - vec2(0.5)));
+    float glyph_mask = clamp(outer_dia + inner_dot, 0.0, 1.0);
+    col = mix(col, rivet_color * 1.05, glyph_mask * 0.45);
+    metallic = max(metallic, glyph_mask * 0.75);
+    roughness = mix(roughness, roughness_metal, glyph_mask * 0.65);
+
+    float pulse = 0.85 + 0.15 * sin(TIME * 3.0);
+    float brace_vein = (is_brace || is_rivet) ? grab_glow * 0.35 : 0.0;
+
     ALBEDO = col;
     ROUGHNESS = roughness;
     METALLIC = metallic;
     SPECULAR = mix(0.18, 0.65, metallic);
+    EMISSION = rune_color * (glyph_mask * (0.22 + grab_glow * 2.0) + brace_vein) * pulse;
 }

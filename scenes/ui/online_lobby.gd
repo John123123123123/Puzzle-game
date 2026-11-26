@@ -7,7 +7,9 @@ const LEVEL_NAMES: Array[String] = [
 	"1: The Catacombs",
 	"2: Chamber of Mirrors",
 	"3: Vault of Twin Moons",
-	"4: The Golden Idol",
+	"4: Sanctum of Shifting Light",
+	"5: The Sunken Cistern",
+	"6: The Golden Idol",
 ]
 
 var _name_input: LineEdit = null

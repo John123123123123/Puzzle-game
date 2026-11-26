@@ -130,6 +130,7 @@ func _update_offscreen_ally_indicators() -> void:
 	var margin_y := 58.0
 	var seen_ids: Dictionary = {}
 
+	var coop_cam := get_tree().get_first_node_in_group("coop_camera")
 	var all_players := get_tree().get_nodes_in_group("player")
 	for node in all_players:
 		if not (node is Player) or not is_instance_valid(node):
@@ -138,6 +139,10 @@ func _update_offscreen_ally_indicators() -> void:
 		if all_players.size() <= 1:
 			continue
 		if is_instance_valid(NetworkManager) and NetworkManager.is_online and p.is_local_controlled():
+			continue
+		if is_instance_valid(coop_cam) and coop_cam.has_method("is_target_in_splitscreen") and coop_cam.is_target_in_splitscreen(p):
+			if _ally_badges.has(p.player_id) and is_instance_valid(_ally_badges[p.player_id]):
+				_ally_badges[p.player_id].visible = false
 			continue
 
 		seen_ids[p.player_id] = true
@@ -324,7 +329,9 @@ func show_chapter_banner(level_num: int) -> void:
 		1: ["CHAPTER I", "THE DARK CATACOMBS"],
 		2: ["CHAPTER II", "CHAMBER OF MIRRORS"],
 		3: ["CHAPTER III", "VAULT OF TWIN MOONS"],
-		4: ["FINAL CHAPTER", "THE GOLDEN IDOL"],
+		4: ["CHAPTER IV", "SANCTUM OF SHIFTING LIGHT"],
+		5: ["CHAPTER V", "THE SUNKEN CISTERN"],
+		6: ["FINAL CHAPTER", "THE GOLDEN IDOL"],
 	}
 	var info: Array = CHAPTER_TITLES.get(level_num, ["CHAPTER %d" % level_num, "ANCIENT SANCTUM"])
 

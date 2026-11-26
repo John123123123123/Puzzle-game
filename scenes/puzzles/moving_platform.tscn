@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/moving_platform.gd" id="1_raft"]
+[ext_resource type="Shader" path="res://shaders/moving_platform.gdshader" id="2_raft_shader"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_raft"]
+size = Vector3(3.2, 0.34, 3.2)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_raft"]
+render_priority = 0
+shader = ExtResource("2_raft_shader")
+shader_parameter/slab_color = Color(0.5, 0.43, 0.33, 1)
+shader_parameter/slab_dark = Color(0.32, 0.27, 0.21, 1)
+shader_parameter/mortar_color = Color(0.14, 0.11, 0.09, 1)
+shader_parameter/bronze_color = Color(0.68, 0.52, 0.24, 1)
+shader_parameter/rune_glow = Color(0.95, 0.72, 0.28, 1)
+shader_parameter/platform_half_size = Vector3(1.6, 0.17, 1.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_raft"]
+material = SubResource("ShaderMaterial_raft")
+size = Vector3(3.2, 0.34, 3.2)
+
+[node name="MovingPlatform" type="AnimatableBody3D" groups=["moving_platform"]]
+collision_layer = 1
+collision_mask = 0
+sync_to_physics = true
+script = ExtResource("1_raft")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_raft")
+
+[node name="RaftMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_raft")
+
+[node name="TrimGroup" type="Node3D" parent="."]

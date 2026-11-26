@@ -17,14 +17,27 @@ var _coop_enabled: bool = true
 @onready var rune_light: OmniLight3D = $RuneLight
 @onready var rune_glyph: MeshInstance3D = $PlateMesh/RuneGlyph
 
+const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
+
 var initial_y: float = 0.08
 var pressed_y: float = 0.015
+var _corner_gem_mat: StandardMaterial3D = null
 
 func _ready() -> void:
 	add_to_group("pressure_plate")
 	trigger_area.body_entered.connect(_on_body_entered)
 	trigger_area.body_exited.connect(_on_body_exited)
 	plate_mesh.position.y = initial_y
+
+	var first_gem := get_node_or_null("BaseRim/GemNW") as MeshInstance3D
+	if is_instance_valid(first_gem):
+		var gm := first_gem.get_active_material(0) as StandardMaterial3D
+		if gm:
+			_corner_gem_mat = gm.duplicate() as StandardMaterial3D
+			for g_name in ["BaseRim/GemNW", "BaseRim/GemNE", "BaseRim/GemSW", "BaseRim/GemSE"]:
+				var g_node := get_node_or_null(g_name) as MeshInstance3D
+				if is_instance_valid(g_node):
+					g_node.material_override = _corner_gem_mat
 
 	if is_instance_valid(rune_glyph):
 		var mat = rune_glyph.get_active_material(0)
@@ -95,6 +108,8 @@ func _update_state() -> void:
 		_update_visuals(is_pressed, true)
 		if is_pressed and is_instance_valid(AudioManager):
 			AudioManager.play_sfx_3d(&"plate_click", global_position, 0.96, 1.04, 0.0, 25.0, 6.0)
+		if is_pressed:
+			_spawn_press_burst()
 		state_changed.emit(is_pressed)
 
 func _animate_plate(pressed: bool) -> void:
@@ -125,3 +140,37 @@ func _update_visuals(pressed: bool, animate: bool) -> void:
 			mat = rune_glyph.material_override as ShaderMaterial
 		if mat:
 			mat.set_shader_parameter("emission_energy", 4.5 if pressed else 1.2)
+			mat.set_shader_parameter("pressed_ratio", 1.0 if pressed else 0.0)
+
+	if _corner_gem_mat:
+		_corner_gem_mat.albedo_color = target_color
+		_corner_gem_mat.emission = target_color
+		_corner_gem_mat.emission_energy_multiplier = 2.8 if pressed else 0.6
+
+func _spawn_press_burst() -> void:
+	var parent_node := get_parent()
+	if not is_instance_valid(parent_node):
+		return
+	DUST_PUFF.spawn(parent_node, global_position + Vector3(0.0, 0.05, 0.0), 4, 0.95)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.62
+	torus.rings = 24
+	torus.ring_segments = 6
+	var r_mat := StandardMaterial3D.new()
+	r_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	r_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	r_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var c := Color(0.28, 0.92, 1.0, 0.85) if player_only else Color(1.0, 0.88, 0.28, 0.85)
+	r_mat.albedo_color = c
+	torus.material = r_mat
+	ring.mesh = torus
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent_node.add_child(ring)
+	ring.global_position = global_position + Vector3(0.0, 0.12, 0.0)
+	ring.scale = Vector3(0.65, 1.0, 0.65)
+	var tw := ring.create_tween().set_parallel(true)
+	tw.tween_property(ring, "scale", Vector3(1.55, 1.0, 1.55), 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(r_mat, "albedo_color:a", 0.0, 0.30)
+	tw.chain().tween_callback(ring.queue_free)

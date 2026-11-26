@@ -26,6 +26,21 @@ emission_enabled = true
 emission = Color(1.0, 0.36, 0.06, 1)
 emission_energy_multiplier = 1.6
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_carnelian"]
+albedo_color = Color(1, 0.44, 0.12, 1)
+metallic = 0.35
+roughness = 0.14
+emission_enabled = true
+emission = Color(1, 0.62, 0.16, 1)
+emission_energy_multiplier = 2.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ember_spark"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+
 [sub_resource type="CylinderMesh" id="CylinderMesh_handle"]
 material = SubResource("StandardMaterial3D_wood")
 top_radius = 0.052
@@ -40,12 +55,26 @@ bottom_radius = 0.052
 height = 0.22
 radial_segments = 12
 
+[sub_resource type="TorusMesh" id="TorusMesh_collar"]
+material = SubResource("StandardMaterial3D_bronze")
+inner_radius = 0.044
+outer_radius = 0.062
+rings = 14
+ring_segments = 6
+
 [sub_resource type="CylinderMesh" id="CylinderMesh_pommel"]
 material = SubResource("StandardMaterial3D_bronze")
 top_radius = 0.048
 bottom_radius = 0.032
 height = 0.06
 radial_segments = 12
+
+[sub_resource type="SphereMesh" id="SphereMesh_pommel_gem"]
+material = SubResource("StandardMaterial3D_carnelian")
+radius = 0.028
+height = 0.052
+radial_segments = 10
+rings = 6
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_cup"]
 material = SubResource("StandardMaterial3D_bronze")
@@ -61,10 +90,29 @@ outer_radius = 0.125
 rings = 16
 ring_segments = 8
 
+[sub_resource type="BoxMesh" id="BoxMesh_prong"]
+material = SubResource("StandardMaterial3D_bronze")
+size = Vector3(0.022, 0.14, 0.022)
+
 [sub_resource type="SphereMesh" id="SphereMesh_pitch"]
 material = SubResource("StandardMaterial3D_ember")
 radius = 0.09
 height = 0.14
+
+[sub_resource type="SphereMesh" id="SphereMesh_ember_spark"]
+material = SubResource("StandardMaterial3D_ember_spark")
+radius = 0.018
+height = 0.036
+radial_segments = 6
+rings = 4
+
+[sub_resource type="Curve" id="Curve_ember_scale"]
+_data = [Vector2(0, 0.8), 0.0, 1.5, 0, 0, Vector2(0.35, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), -1.8, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_ember_color"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 0.9, 0.45, 1, 1, 0.42, 0.08, 0.85, 0.5, 0.1, 0.02, 0)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_torch_flame"]
 render_priority = 1
@@ -104,9 +152,21 @@ mesh = SubResource("CylinderMesh_handle")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0)
 mesh = SubResource("CylinderMesh_grip")
 
+[node name="GoldCollarLower" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, 0)
+mesh = SubResource("TorusMesh_collar")
+
+[node name="GoldCollarUpper" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+mesh = SubResource("TorusMesh_collar")
+
 [node name="BronzePommel" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
 mesh = SubResource("CylinderMesh_pommel")
+
+[node name="PommelGem" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0, 0)
+mesh = SubResource("SphereMesh_pommel_gem")
 
 [node name="SconceCup" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.68, 0)
@@ -115,6 +175,22 @@ mesh = SubResource("CylinderMesh_cup")
 [node name="BronzeRing" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 mesh = SubResource("TorusMesh_cage")
+
+[node name="ProngN" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.939693, -0.34202, 0, 0.34202, 0.939693, 0, 0.78, -0.105)
+mesh = SubResource("BoxMesh_prong")
+
+[node name="ProngS" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0.78, 0.105)
+mesh = SubResource("BoxMesh_prong")
+
+[node name="ProngE" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.939693, -0.34202, 0, 0.34202, 0.939693, 0, 0, 0, 1, 0.105, 0.78, 0)
+mesh = SubResource("BoxMesh_prong")
+
+[node name="ProngW" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0, 0, 1, -0.105, 0.78, 0)
+mesh = SubResource("BoxMesh_prong")
 
 [node name="PitchHead" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.74, 0)
@@ -127,6 +203,23 @@ mesh = SubResource("CylinderMesh_flame")
 
 [node name="TorchFire" parent="Flame" instance=ExtResource("2_fire")]
 transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 0, -0.08, 0)
+
+[node name="EmberTrail" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+cast_shadow = 0
+amount = 16
+lifetime = 0.95
+local_coords = false
+mesh = SubResource("SphereMesh_ember_spark")
+emission_shape = 1
+emission_sphere_radius = 0.1
+direction = Vector3(0, 1, 0)
+spread = 32.0
+gravity = Vector3(0, 0.65, 0)
+initial_velocity_min = 0.25
+initial_velocity_max = 0.65
+scale_amount_curve = SubResource("Curve_ember_scale")
+color_ramp = SubResource("Gradient_ember_color")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)

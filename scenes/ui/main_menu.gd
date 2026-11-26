@@ -13,10 +13,12 @@ extends Control
 @onready var card_4: PanelContainer = $VBoxContainer/CardsContainer/Card4
 
 # Level selector buttons
-@onready var btn_lvl1: Button = $VBoxContainer/LevelSelector/BtnLvl1
-@onready var btn_lvl2: Button = $VBoxContainer/LevelSelector/BtnLvl2
-@onready var btn_lvl3: Button = $VBoxContainer/LevelSelector/BtnLvl3
-@onready var btn_lvl4: Button = $VBoxContainer/LevelSelector/BtnLvl4
+@onready var btn_lvl1: Button = $VBoxContainer/LevelSelector/LevelGrid/BtnLvl1
+@onready var btn_lvl2: Button = $VBoxContainer/LevelSelector/LevelGrid/BtnLvl2
+@onready var btn_lvl3: Button = $VBoxContainer/LevelSelector/LevelGrid/BtnLvl3
+@onready var btn_lvl4: Button = $VBoxContainer/LevelSelector/LevelGrid/BtnLvl4
+@onready var btn_lvl5: Button = $VBoxContainer/LevelSelector/LevelGrid/BtnLvl5
+@onready var btn_lvl6: Button = $VBoxContainer/LevelSelector/LevelGrid/BtnLvl6
 
 var selected_count: int = 1
 var selected_level: int = 1
@@ -43,7 +45,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	player_cards = [card_1, card_2, card_3, card_4]
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
-	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3, btn_lvl4]
+	level_buttons = [btn_lvl1, btn_lvl2, btn_lvl3, btn_lvl4, btn_lvl5, btn_lvl6]
 	for btn in level_buttons:
 		_base_level_labels.append(btn.text)
 
@@ -55,6 +57,8 @@ func _ready() -> void:
 	btn_lvl2.pressed.connect(func(): set_selected_level(2))
 	btn_lvl3.pressed.connect(func(): set_selected_level(3))
 	btn_lvl4.pressed.connect(func(): set_selected_level(4))
+	btn_lvl5.pressed.connect(func(): set_selected_level(5))
+	btn_lvl6.pressed.connect(func(): set_selected_level(6))
 
 	set_player_count(1)
 	set_selected_level(1)

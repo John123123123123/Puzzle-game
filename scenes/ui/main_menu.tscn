@@ -306,9 +306,9 @@ theme_override_font_sizes/font_size = 13
 text = "INACTIVE"
 horizontal_alignment = 1
 
-[node name="LevelSelector" type="HBoxContainer" parent="VBoxContainer"]
+[node name="LevelSelector" type="VBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 alignment = 1
 
 [node name="LevelPrompt" type="Label" parent="VBoxContainer/LevelSelector"]
@@ -316,30 +316,50 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
 theme_override_font_sizes/font_size = 15
 text = "Starting Level:"
+horizontal_alignment = 1
 
-[node name="BtnLvl1" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(145, 36)
+[node name="LevelGrid" type="GridContainer" parent="VBoxContainer/LevelSelector"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="BtnLvl1" type="Button" parent="VBoxContainer/LevelSelector/LevelGrid"]
+custom_minimum_size = Vector2(205, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "1: The Catacombs"
 
-[node name="BtnLvl2" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(155, 36)
+[node name="BtnLvl2" type="Button" parent="VBoxContainer/LevelSelector/LevelGrid"]
+custom_minimum_size = Vector2(205, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "2: Chamber of Mirrors"
 
-[node name="BtnLvl3" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(160, 36)
+[node name="BtnLvl3" type="Button" parent="VBoxContainer/LevelSelector/LevelGrid"]
+custom_minimum_size = Vector2(205, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "3: Vault of Twin Moons"
 
-[node name="BtnLvl4" type="Button" parent="VBoxContainer/LevelSelector"]
-custom_minimum_size = Vector2(145, 36)
+[node name="BtnLvl4" type="Button" parent="VBoxContainer/LevelSelector/LevelGrid"]
+custom_minimum_size = Vector2(205, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "4: The Golden Idol"
+text = "4: Sanctum of Shifting Light"
+
+[node name="BtnLvl5" type="Button" parent="VBoxContainer/LevelSelector/LevelGrid"]
+custom_minimum_size = Vector2(205, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "5: The Sunken Cistern"
+
+[node name="BtnLvl6" type="Button" parent="VBoxContainer/LevelSelector/LevelGrid"]
+custom_minimum_size = Vector2(205, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "6: The Golden Idol"
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
 custom_minimum_size = Vector2(300, 52)

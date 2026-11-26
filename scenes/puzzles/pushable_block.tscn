@@ -19,6 +19,8 @@ shader_parameter/brace_width = 0.045
 shader_parameter/corner_size = 0.15
 shader_parameter/roughness_wood = 0.78
 shader_parameter/roughness_metal = 0.42
+shader_parameter/grab_glow = 0.0
+shader_parameter/rune_color = Color(1, 0.78, 0.25, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_block"]
 material = SubResource("ShaderMaterial_block")
@@ -39,6 +41,13 @@ ring_segments = 8
 [sub_resource type="BoxMesh" id="BoxMesh_corner_cap"]
 material = SubResource("StandardMaterial3D_bronze_iron")
 size = Vector3(0.20, 0.20, 0.20)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_medallion"]
+material = SubResource("StandardMaterial3D_bronze_iron")
+top_radius = 0.18
+bottom_radius = 0.22
+height = 0.04
+radial_segments = 8
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_interact"]
 size = Vector3(1.8, 1.4, 1.8)
@@ -87,6 +96,26 @@ mesh = SubResource("BoxMesh_corner_cap")
 [node name="CapTRB" type="MeshInstance3D" parent="MeshInstance3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, 0.52, -0.52)
 mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapBLF" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.52, -0.52, 0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapBRF" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, -0.52, 0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapBLB" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.52, -0.52, -0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="CapBRB" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, -0.52, -0.52)
+mesh = SubResource("BoxMesh_corner_cap")
+
+[node name="TopMedallion" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.61, 0)
+mesh = SubResource("CylinderMesh_medallion")
 
 [node name="InteractionArea" type="Area3D" parent="."]
 collision_layer = 4

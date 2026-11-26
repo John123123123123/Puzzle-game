@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/conveyor_floor.gd" id="1_conv"]
+[ext_resource type="Shader" path="res://shaders/conveyor_floor.gdshader" id="2_conv_shader"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(3, 0.22, 6)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_belt"]
+render_priority = 0
+shader = ExtResource("2_conv_shader")
+shader_parameter/slat_dark = Color(0.18, 0.16, 0.19, 1)
+shader_parameter/slat_light = Color(0.32, 0.29, 0.32, 1)
+shader_parameter/chevron_glow = Color(0.84, 0.66, 0.28, 1)
+shader_parameter/scroll_dir = Vector2(0, -1)
+shader_parameter/scroll_speed = 0.75
+shader_parameter/belt_world_size = Vector2(3, 6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_belt"]
+material = SubResource("ShaderMaterial_belt")
+size = Vector3(3, 0.22, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_carry"]
+size = Vector3(2.85, 0.9, 5.85)
+
+[node name="ConveyorFloor" type="StaticBody3D" groups=["conveyor_floor"]]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_conv")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_body")
+
+[node name="BeltMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_belt")
+
+[node name="CarryArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CarryArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
+shape = SubResource("BoxShape3D_carry")

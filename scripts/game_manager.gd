@@ -22,6 +22,8 @@ var exploration_levels: Array[String] = [
 	"res://scenes/levels/temple_level_1.tscn", # Level 1: The Catacombs (Braziers, spikes, levers)
 	"res://scenes/levels/temple_level_2.tscn", # Level 2: Chamber of Mirrors (Light beam & mirror puzzle)
 	"res://scenes/levels/temple_level_vault.tscn", # Level 3: Vault of Twin Moons (Solar / Lunar phase-shifting)
+	"res://scenes/levels/temple_level_prism.tscn", # Level 4: Sanctum of Shifting Light (Mirror + Phase + Quicksand + Rafts)
+	"res://scenes/levels/temple_level_cistern.tscn", # Level 5: The Sunken Cistern (Water floodgates & floating bridges)
 ]
 
 # The Golden Idol Temple & Giant Boulder Escape is ALWAYS the grand finale (always the last level)

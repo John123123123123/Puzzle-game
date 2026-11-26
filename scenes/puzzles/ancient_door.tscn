@@ -25,6 +25,22 @@ shader_parameter/roughness_bronze = 0.32
 material = SubResource("ShaderMaterial_door")
 size = Vector3(3.8, 4.2, 0.6)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bronze_trim"]
+albedo_color = Color(0.84, 0.66, 0.26, 1)
+metallic = 0.88
+roughness = 0.28
+emission_enabled = true
+emission = Color(0.95, 0.76, 0.25, 1)
+emission_energy_multiplier = 0.22
+
+[sub_resource type="BoxMesh" id="BoxMesh_crest"]
+material = SubResource("StandardMaterial3D_bronze_trim")
+size = Vector3(4.0, 0.26, 0.74)
+
+[sub_resource type="BoxMesh" id="BoxMesh_side_trim"]
+material = SubResource("StandardMaterial3D_bronze_trim")
+size = Vector3(0.14, 3.8, 0.68)
+
 [node name="AncientDoor" type="StaticBody3D" groups=["ancient_door"]]
 collision_layer = 1
 collision_mask = 3
@@ -37,6 +53,18 @@ shape = SubResource("BoxShape3D_door")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
 mesh = SubResource("BoxMesh_door")
+
+[node name="TopCrest" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.02, 0)
+mesh = SubResource("BoxMesh_crest")
+
+[node name="SideTrimL" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.86, 0, 0)
+mesh = SubResource("BoxMesh_side_trim")
+
+[node name="SideTrimR" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.86, 0, 0)
+mesh = SubResource("BoxMesh_side_trim")
 
 [node name="RuneLight" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0.6)

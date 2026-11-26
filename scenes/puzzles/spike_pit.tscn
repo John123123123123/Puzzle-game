@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/puzzles/spike_pit.gd" id="1_spike_pit"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(8.4, 0.2, 10.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(8.4, 0.2, 10.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hazard"]
+size = Vector3(7.92, 1.6, 9.92)
+
+[node name="SpikePit" type="Node3D" groups=["spike_pit"]]
+script = ExtResource("1_spike_pit")
+
+[node name="PitFloor" type="StaticBody3D" parent="." groups=["spike_pit_floor"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PitFloor"]
+mesh = SubResource("BoxMesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PitFloor"]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="PitWalls" type="Node3D" parent="."]
+
+[node name="SpikesMultiMesh" type="MultiMeshInstance3D" parent="."]
+
+[node name="PitGlow" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.45, 0)
+light_color = Color(0.88, 0.28, 0.14, 1)
+light_energy = 1.15
+omni_range = 6.5
+
+[node name="HazardArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="HazardArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6, 0)
+shape = SubResource("BoxShape3D_hazard")

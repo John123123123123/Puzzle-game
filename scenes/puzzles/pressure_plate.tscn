@@ -54,6 +54,22 @@ shader_parameter/base_color = Color(0.32, 0.27, 0.20, 1)
 shader_parameter/rune_glow_color = Color(1, 0.85, 0.2, 1)
 shader_parameter/pulse_speed = 2.0
 shader_parameter/emission_energy = 2.6
+shader_parameter/pressed_ratio = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_corner_gem"]
+albedo_color = Color(1, 0.82, 0.24, 1)
+metallic = 0.4
+roughness = 0.14
+emission_enabled = true
+emission = Color(1, 0.85, 0.25, 1)
+emission_energy_multiplier = 1.1
+
+[sub_resource type="SphereMesh" id="SphereMesh_corner_gem"]
+material = SubResource("StandardMaterial3D_corner_gem")
+radius = 0.042
+height = 0.055
+radial_segments = 10
+rings = 6
 
 [sub_resource type="QuadMesh" id="QuadMesh_glyph"]
 material = SubResource("ShaderMaterial_rune")
@@ -84,6 +100,22 @@ mesh = SubResource("BoxMesh_corner")
 [node name="CornerSE" type="MeshInstance3D" parent="BaseRim"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.74, 0.012, 0.74)
 mesh = SubResource("BoxMesh_corner")
+
+[node name="GemNW" type="MeshInstance3D" parent="BaseRim"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.74, 0.052, -0.74)
+mesh = SubResource("SphereMesh_corner_gem")
+
+[node name="GemNE" type="MeshInstance3D" parent="BaseRim"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.74, 0.052, -0.74)
+mesh = SubResource("SphereMesh_corner_gem")
+
+[node name="GemSW" type="MeshInstance3D" parent="BaseRim"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.74, 0.052, 0.74)
+mesh = SubResource("SphereMesh_corner_gem")
+
+[node name="GemSE" type="MeshInstance3D" parent="BaseRim"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.74, 0.052, 0.74)
+mesh = SubResource("SphereMesh_corner_gem")
 
 [node name="PlateMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)

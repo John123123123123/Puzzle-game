@@ -14,6 +14,8 @@ var scarab_scene = preload("res://scenes/puzzles/collectible_scarab.tscn")
 var is_game_over: bool = false
 var level_complete: bool = false
 var latest_checkpoint_pos: Vector3 = Vector3.ZERO
+## Ordered room checkpoint zones: { "z_max": float, "z_min": float, "spawn": Vector3 }
+var room_checkpoints: Array[Dictionary] = []
 var _world_sync_timer: float = 0.0
 var _trap_clock: float = 0.0
 var _trap_sync_timer: float = 0.0
@@ -66,6 +68,9 @@ func _rpc_sync_traps(host_clock: float, spinner_paths: Array, spinner_yaws: Pack
 	for st in get_tree().get_nodes_in_group("spike_trap"):
 		if is_instance_valid(st) and st.has_method("sync_network_time"):
 			st.sync_network_time(host_clock)
+	for mp in get_tree().get_nodes_in_group("moving_platform"):
+		if is_instance_valid(mp) and mp.has_method("sync_network_time"):
+			mp.sync_network_time(host_clock)
 	for i in range(mini(spinner_paths.size(), spinner_yaws.size())):
 		var sp := get_node_or_null(spinner_paths[i])
 		if is_instance_valid(sp) and sp.has_method("sync_network_yaw"):
@@ -88,9 +93,56 @@ func _announce_level_start() -> void:
 		var lvl_idx := GameManager.current_level_index if is_instance_valid(GameManager) else 1
 		hud.show_chapter_banner(lvl_idx)
 
+func register_room_checkpoint(z_max: float, z_min: float, spawn_pos: Vector3) -> void:
+	room_checkpoints.append({
+		"z_max": z_max,
+		"z_min": z_min,
+		"spawn": spawn_pos,
+	})
+
+func get_room_respawn_pos(from_pos: Vector3) -> Vector3:
+	if not room_checkpoints.is_empty():
+		var best_dist := INF
+		var best_spawn := room_checkpoints[0]["spawn"] as Vector3
+		for entry in room_checkpoints:
+			var z_max := float(entry["z_max"])
+			var z_min := float(entry["z_min"])
+			if from_pos.z <= z_max and from_pos.z >= z_min:
+				return entry["spawn"] as Vector3
+			var d := 0.0
+			if from_pos.z > z_max:
+				d = from_pos.z - z_max
+			elif from_pos.z < z_min:
+				d = z_min - from_pos.z
+			if d < best_dist:
+				best_dist = d
+				best_spawn = entry["spawn"] as Vector3
+		return best_spawn
+
+	# Fallback for levels without explicit room_checkpoints: use the closest main progression door south of from_pos
+	var closest_door: Node3D = null
+	var closest_door_z := INF
+	for door in get_tree().get_nodes_in_group("ancient_door"):
+		if is_instance_valid(door) and door is Node3D:
+			if absf(door.global_position.x) >= 2.5:
+				continue
+			if door.global_position.z > from_pos.z and door.global_position.z < closest_door_z:
+				closest_door_z = door.global_position.z
+				closest_door = door
+	if is_instance_valid(closest_door):
+		return Vector3(closest_door.global_position.x, closest_door.global_position.y + 0.25, closest_door.global_position.z - 2.0)
+
+	if is_instance_valid(player_spawn_1):
+		return player_spawn_1.global_position + Vector3(0.0, 0.15, 0.0)
+	return latest_checkpoint_pos
+
 func _on_door_opened(door: Node3D) -> void:
 	if is_instance_valid(door):
-		latest_checkpoint_pos = door.global_position + Vector3(0.0, 0.1, 0.0)
+		if absf(door.global_position.x) > 2.5:
+			return
+		var candidate := Vector3(door.global_position.x, door.global_position.y + 0.2, door.global_position.z - 2.0)
+		if candidate.z < latest_checkpoint_pos.z or latest_checkpoint_pos == Vector3.ZERO:
+			latest_checkpoint_pos = candidate
 
 ## Virtual hook overridden by levels that scale door triggers on co-op drop-in.
 func on_player_joined(_total_players: int) -> void:

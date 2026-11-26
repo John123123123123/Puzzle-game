@@ -4,6 +4,8 @@ class_name AncientDoor
 signal door_opened(door: AncientDoor)
 signal door_closed(door: AncientDoor)
 
+const DUST_PUFF := preload("res://scenes/effects/dust_puff.gd")
+
 @export var required_triggers: int = 1
 @export var coop_extra_triggers_per_player: int = 0
 @export var open_height: float = 4.8
@@ -149,6 +151,7 @@ func _animate_door(open: bool) -> void:
 	_door_tween.tween_property(self, "position", target_pos, open_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 	if open:
+		_spawn_door_fx(true)
 		if is_instance_valid(door_mesh):
 			door_mesh.visible = true
 		if is_instance_valid(mat):
@@ -183,3 +186,38 @@ func _animate_door(open: bool) -> void:
 		if is_instance_valid(mat):
 			_door_tween.tween_property(mat, "shader_parameter/fade_alpha", 1.0, open_duration * 0.7)
 			_door_tween.tween_property(mat, "shader_parameter/open_glow", 0.0, open_duration * 0.7)
+		_door_tween.chain().tween_callback(func():
+			if not is_open:
+				_spawn_door_fx(false)
+		)
+
+func _spawn_door_fx(opening: bool) -> void:
+	var parent_node := get_parent()
+	if is_instance_valid(parent_node):
+		var base := closed_position + Vector3(0.0, 0.15, 0.0)
+		DUST_PUFF.spawn(parent_node, base + Vector3(-1.1, 0.0, 0.0), 4, 1.15)
+		DUST_PUFF.spawn(parent_node, base + Vector3(1.1, 0.0, 0.0), 4, 1.15)
+		var sp_mat := StandardMaterial3D.new()
+		sp_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sp_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		sp_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sp_mat.albedo_color = Color(1.0, 0.85, 0.30, 0.95)
+		var sp_mesh := BoxMesh.new()
+		sp_mesh.size = Vector3(0.06, 0.06, 0.06)
+		sp_mesh.material = sp_mat
+		for _i in range(8 if opening else 5):
+			var sp := MeshInstance3D.new()
+			sp.mesh = sp_mesh
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			parent_node.add_child(sp)
+			var start_p := base + Vector3(randf_range(-1.6, 1.6), randf_range(0.1, 1.2 if opening else 0.3), randf_range(-0.4, 0.4))
+			sp.global_position = start_p
+			var vel := Vector3(randf_range(-0.9, 0.9), randf_range(0.4, 1.4), randf_range(-0.9, 0.9))
+			var tw := sp.create_tween().set_parallel(true)
+			tw.tween_property(sp, "global_position", start_p + vel, 0.38).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tw.tween_property(sp, "scale", Vector3.ZERO, 0.38)
+			tw.chain().tween_callback(sp.queue_free)
+	if not opening:
+		for cam in get_tree().get_nodes_in_group("coop_camera"):
+			if cam.has_method("trigger_shake"):
+				cam.trigger_shake(0.06, 0.14)
