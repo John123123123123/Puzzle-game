@@ -1,71 +1,231 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/puzzles/collectible_scarab.gd" id="1_scarab"]
+[ext_resource type="Shader" path="res://shaders/scarab_carapace.gdshader" id="2_carapace_shader"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_pickup"]
 radius = 0.78
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_carapace"]
-albedo_color = Color(0.08, 0.54, 0.68, 1)
-metallic = 0.90
-roughness = 0.12
-emission_enabled = true
-emission = Color(0.16, 0.86, 1.0, 1)
-emission_energy_multiplier = 1.65
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_carapace"]
+render_priority = 0
+shader = ExtResource("2_carapace_shader")
+shader_parameter/deep_lapis = Color(0.03, 0.2, 0.46, 1)
+shader_parameter/turquoise_mid = Color(0.06, 0.72, 0.85, 1)
+shader_parameter/emerald_sheen = Color(0.2, 0.96, 0.7, 1)
+shader_parameter/gold_inlay = Color(1, 0.82, 0.24, 1)
+shader_parameter/glow_strength = 1.15
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold_trim"]
-albedo_color = Color(1.0, 0.84, 0.28, 1)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold_royal"]
+albedo_color = Color(1, 0.83, 0.24, 1)
 metallic = 0.96
+roughness = 0.14
+emission_enabled = true
+emission = Color(0.98, 0.76, 0.18, 1)
+emission_energy_multiplier = 0.38
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold_dark"]
+albedo_color = Color(0.62, 0.44, 0.13, 1)
+metallic = 0.9
+roughness = 0.28
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lapis"]
+albedo_color = Color(0.06, 0.34, 0.68, 1)
+metallic = 0.72
 roughness = 0.16
 emission_enabled = true
-emission = Color(0.98, 0.78, 0.22, 1)
+emission = Color(0.12, 0.6, 0.96, 1)
 emission_energy_multiplier = 0.95
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sun_orb"]
-albedo_color = Color(1.0, 0.52, 0.15, 1)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_turquoise"]
+albedo_color = Color(0.1, 0.84, 0.88, 1)
+metallic = 0.78
+roughness = 0.12
 emission_enabled = true
-emission = Color(1.0, 0.68, 0.20, 1)
+emission = Color(0.16, 0.94, 1, 1)
+emission_energy_multiplier = 1.45
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_carnelian"]
+albedo_color = Color(1, 0.46, 0.1, 1)
+metallic = 0.35
+roughness = 0.12
+emission_enabled = true
+emission = Color(1, 0.66, 0.18, 1)
 emission_energy_multiplier = 3.2
 
-[sub_resource type="SphereMesh" id="SphereMesh_body"]
-material = SubResource("StandardMaterial3D_carapace")
-radius = 0.20
-height = 0.30
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sun_corona"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(1, 0.76, 0.24, 0.42)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sparkle"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_chassis"]
+material = SubResource("StandardMaterial3D_gold_dark")
+radius = 0.18
+height = 0.24
 radial_segments = 20
 rings = 10
 
-[sub_resource type="BoxMesh" id="BoxMesh_seam"]
-material = SubResource("StandardMaterial3D_gold_trim")
-size = Vector3(0.032, 0.04, 0.44)
+[sub_resource type="SphereMesh" id="SphereMesh_elytron"]
+material = SubResource("ShaderMaterial_carapace")
+radius = 0.15
+height = 0.24
+radial_segments = 20
+rings = 10
 
-[sub_resource type="SphereMesh" id="SphereMesh_head"]
-material = SubResource("StandardMaterial3D_gold_trim")
-radius = 0.115
-height = 0.16
-radial_segments = 14
-rings = 8
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_spine"]
+material = SubResource("StandardMaterial3D_gold_royal")
+radius = 0.018
+height = 0.32
+radial_segments = 10
+rings = 2
 
-[sub_resource type="SphereMesh" id="SphereMesh_orb"]
-material = SubResource("StandardMaterial3D_sun_orb")
-radius = 0.055
-height = 0.11
+[sub_resource type="BoxMesh" id="BoxMesh_scutellum"]
+material = SubResource("StandardMaterial3D_gold_royal")
+size = Vector3(0.068, 0.028, 0.068)
+
+[sub_resource type="SphereMesh" id="SphereMesh_scutellum_gem"]
+material = SubResource("StandardMaterial3D_carnelian")
+radius = 0.022
+height = 0.032
 radial_segments = 12
 rings = 6
 
-[sub_resource type="BoxMesh" id="BoxMesh_wing_main"]
-material = SubResource("StandardMaterial3D_gold_trim")
-size = Vector3(0.32, 0.022, 0.14)
+[sub_resource type="SphereMesh" id="SphereMesh_pronotum"]
+material = SubResource("ShaderMaterial_carapace")
+radius = 0.14
+height = 0.20
+radial_segments = 18
+rings = 8
 
-[sub_resource type="BoxMesh" id="BoxMesh_wing_tip"]
-material = SubResource("StandardMaterial3D_carapace")
-size = Vector3(0.22, 0.018, 0.09)
+[sub_resource type="TorusMesh" id="TorusMesh_collar"]
+material = SubResource("StandardMaterial3D_gold_royal")
+inner_radius = 0.115
+outer_radius = 0.138
+rings = 20
+ring_segments = 8
 
-[sub_resource type="TorusMesh" id="TorusMesh_ring"]
-material = SubResource("StandardMaterial3D_gold_trim")
-inner_radius = 0.32
-outer_radius = 0.355
-rings = 24
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+material = SubResource("StandardMaterial3D_gold_royal")
+radius = 0.095
+height = 0.14
+radial_segments = 16
+rings = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_head_crest"]
+material = SubResource("StandardMaterial3D_gold_dark")
+size = Vector3(0.09, 0.024, 0.05)
+
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+material = SubResource("StandardMaterial3D_turquoise")
+radius = 0.022
+height = 0.036
+radial_segments = 10
+rings = 6
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_mandible"]
+material = SubResource("StandardMaterial3D_gold_royal")
+radius = 0.015
+height = 0.11
+radial_segments = 8
+rings = 2
+
+[sub_resource type="SphereMesh" id="SphereMesh_sun_orb"]
+material = SubResource("StandardMaterial3D_carnelian")
+radius = 0.068
+height = 0.136
+radial_segments = 16
+rings = 8
+
+[sub_resource type="TorusMesh" id="TorusMesh_sun_ring"]
+material = SubResource("StandardMaterial3D_gold_royal")
+inner_radius = 0.072
+outer_radius = 0.092
+rings = 20
+ring_segments = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_sun_corona"]
+material = SubResource("StandardMaterial3D_sun_corona")
+radius = 0.115
+height = 0.23
+radial_segments = 14
+rings = 8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_leg"]
+material = SubResource("StandardMaterial3D_gold_dark")
+radius = 0.014
+height = 0.16
+radial_segments = 8
+rings = 2
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_wing_spar"]
+material = SubResource("StandardMaterial3D_gold_royal")
+radius = 0.016
+height = 0.36
+radial_segments = 10
+rings = 2
+
+[sub_resource type="BoxMesh" id="BoxMesh_feather_primary"]
+material = SubResource("StandardMaterial3D_gold_royal")
+size = Vector3(0.36, 0.018, 0.075)
+
+[sub_resource type="BoxMesh" id="BoxMesh_feather_tip"]
+material = SubResource("StandardMaterial3D_turquoise")
+size = Vector3(0.09, 0.02, 0.062)
+
+[sub_resource type="BoxMesh" id="BoxMesh_feather_secondary"]
+material = SubResource("StandardMaterial3D_lapis")
+size = Vector3(0.31, 0.016, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_feather_tertiary"]
+material = SubResource("StandardMaterial3D_turquoise")
+size = Vector3(0.24, 0.015, 0.062)
+
+[sub_resource type="BoxMesh" id="BoxMesh_feather_inner"]
+material = SubResource("StandardMaterial3D_gold_royal")
+size = Vector3(0.17, 0.014, 0.055)
+
+[sub_resource type="TorusMesh" id="TorusMesh_outer_ring"]
+material = SubResource("StandardMaterial3D_gold_royal")
+inner_radius = 0.44
+outer_radius = 0.468
+rings = 32
 ring_segments = 10
+
+[sub_resource type="SphereMesh" id="SphereMesh_halo_stud"]
+material = SubResource("StandardMaterial3D_turquoise")
+radius = 0.025
+height = 0.042
+radial_segments = 10
+rings = 6
+
+[sub_resource type="TorusMesh" id="TorusMesh_inner_ring"]
+material = SubResource("StandardMaterial3D_turquoise")
+inner_radius = 0.34
+outer_radius = 0.358
+rings = 28
+ring_segments = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_sparkle"]
+material = SubResource("StandardMaterial3D_sparkle")
+radius = 0.022
+height = 0.044
+radial_segments = 6
+rings = 4
+
+[sub_resource type="Curve" id="Curve_sparkle_scale"]
+_data = [Vector2(0, 0), 0.0, 4.0, 0, 0, Vector2(0.3, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), -1.8, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_sparkle_color"]
+offsets = PackedFloat32Array(0, 0.45, 1)
+colors = PackedColorArray(1, 0.88, 0.35, 1, 0.22, 0.95, 1, 0.9, 0.22, 0.95, 1, 0)
 
 [node name="CollectibleScarab" type="Area3D" groups=["collectible_scarab"]]
 collision_layer = 4
@@ -73,55 +233,208 @@ collision_mask = 2
 script = ExtResource("1_scarab")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.58, 0)
 shape = SubResource("SphereShape3D_pickup")
 
 [node name="MeshRoot" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 0, 0.62, 0)
 
-[node name="BodyMesh" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 0.72, 0, 0, 0, 1.32, 0, 0, 0.02)
-mesh = SubResource("SphereMesh_body")
+[node name="ScarabBody" type="Node3D" parent="MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 0.951057, -0.309017, 0, 0.309017, 0.951057, 0, 0.02, 0.02)
 
-[node name="ElytraSeam" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.095, 0.03)
-mesh = SubResource("BoxMesh_seam")
+[node name="GoldChassis" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1.05, 0, 0, 0, 0.36, 0, 0, 0, 1.38, 0, -0.055, 0.02)
+mesh = SubResource("SphereMesh_chassis")
 
-[node name="HeadPlate" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 0.82, 0, 0, 0, 1, 0, 0.03, -0.21)
+[node name="ElytronL" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.807542, -0.118081, 0, 0.142391, 0.669669, 0, 0, 0, 1.3, -0.068, 0.01, 0.06)
+mesh = SubResource("SphereMesh_elytron")
+
+[node name="ElytronR" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.807542, 0.118081, 0, -0.142391, 0.669669, 0, 0, 0, 1.3, 0.068, 0.01, 0.06)
+mesh = SubResource("SphereMesh_elytron")
+
+[node name="ElytraSpine" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0.088, 0.07)
+mesh = SubResource("CapsuleMesh_spine")
+
+[node name="ScutellumPlate" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0, 0.098, -0.065)
+mesh = SubResource("BoxMesh_scutellum")
+
+[node name="ScutellumGem" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.114, -0.065)
+mesh = SubResource("SphereMesh_scutellum_gem")
+
+[node name="Pronotum" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.95, 0, 0, 0, 0.58, 0, 0, 0, 0.7, 0, 0.02, -0.14)
+mesh = SubResource("SphereMesh_pronotum")
+
+[node name="PronotumCollar" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1.02, 0, 0, 0, 0, -0.45, 0, 1, 0, 0, 0.022, -0.075)
+mesh = SubResource("TorusMesh_collar")
+
+[node name="HeadPlate" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1.12, 0, 0, 0, 0.68, 0, 0, 0, 0.85, 0, 0.015, -0.255)
 mesh = SubResource("SphereMesh_head")
 
-[node name="SunOrb" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, -0.34)
-mesh = SubResource("SphereMesh_orb")
+[node name="HeadCrest" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.056, -0.245)
+mesh = SubResource("BoxMesh_head_crest")
 
-[node name="WingL" type="Node3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.10, 0.06, -0.02)
+[node name="EyeL" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.072, 0.025, -0.27)
+mesh = SubResource("SphereMesh_eye")
 
-[node name="WingMesh" type="MeshInstance3D" parent="MeshRoot/WingL"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0, 0)
-mesh = SubResource("BoxMesh_wing_main")
+[node name="EyeR" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.072, 0.025, -0.27)
+mesh = SubResource("SphereMesh_eye")
 
-[node name="WingFeather" type="MeshInstance3D" parent="MeshRoot/WingL"]
-transform = Transform3D(0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, -0.18, -0.008, 0.07)
-mesh = SubResource("BoxMesh_wing_tip")
+[node name="MandibleL" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.866025, 0.5, 0, 0, 0, -1, -0.5, 0.866025, 0, -0.082, 0.02, -0.345)
+mesh = SubResource("CapsuleMesh_mandible")
 
-[node name="WingR" type="Node3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.10, 0.06, -0.02)
+[node name="MandibleR" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.866025, -0.5, 0, 0, 0, -1, 0.5, 0.866025, 0, 0.082, 0.02, -0.345)
+mesh = SubResource("CapsuleMesh_mandible")
 
-[node name="WingMesh" type="MeshInstance3D" parent="MeshRoot/WingR"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0, 0)
-mesh = SubResource("BoxMesh_wing_main")
+[node name="SunOrb" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.035, -0.38)
+mesh = SubResource("SphereMesh_sun_orb")
 
-[node name="WingFeather" type="MeshInstance3D" parent="MeshRoot/WingR"]
-transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, 0.18, -0.008, 0.07)
-mesh = SubResource("BoxMesh_wing_tip")
+[node name="SunOrbRing" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0.035, -0.38)
+mesh = SubResource("TorusMesh_sun_ring")
 
-[node name="GoldRing" type="MeshInstance3D" parent="MeshRoot"]
-mesh = SubResource("TorusMesh_ring")
+[node name="SunOrbCorona" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.035, -0.38)
+cast_shadow = 0
+mesh = SubResource("SphereMesh_sun_corona")
+
+[node name="LegFL" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.642788, -0.766044, 0, 0.766044, 0.642788, 0, 0, 0, 1, -0.15, -0.045, -0.16)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="LegFR" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.642788, 0.766044, 0, -0.766044, 0.642788, 0, 0, 0, 1, 0.15, -0.045, -0.16)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="LegML" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.5, -0.866025, 0, 0.866025, 0.5, 0, 0, 0, 1, -0.18, -0.05, 0.02)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="LegMR" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.5, 0.866025, 0, -0.866025, 0.5, 0, 0, 0, 1, 0.18, -0.05, 0.02)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="LegBL" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.642788, -0.663414, 0.383022, 0.766044, 0.55667, -0.321394, 0, 0.5, 0.866025, -0.15, -0.045, 0.19)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="LegBR" type="MeshInstance3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(0.642788, 0.663414, -0.383022, -0.766044, 0.55667, -0.321394, 0, 0.5, 0.866025, 0.15, -0.045, 0.19)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="WingL" type="Node3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11, 0.055, -0.04)
+
+[node name="LeadingBar" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingL"]
+transform = Transform3D(0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 0, 0, 1, -0.18, 0.008, -0.032)
+mesh = SubResource("CapsuleMesh_wing_spar")
+
+[node name="FeatherPrimary1" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingL"]
+transform = Transform3D(0.996195, 0, -0.087156, 0, 1, 0, 0.087156, 0, 0.996195, -0.18, 0.002, 0)
+mesh = SubResource("BoxMesh_feather_primary")
+
+[node name="FeatherTip1" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingL"]
+transform = Transform3D(0.996195, 0, -0.087156, 0, 1, 0, 0.087156, 0, 0.996195, -0.36, 0.004, 0.018)
+mesh = SubResource("BoxMesh_feather_tip")
+
+[node name="FeatherSecondary2" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingL"]
+transform = Transform3D(0.970296, 0, -0.241922, 0, 1, 0, 0.241922, 0, 0.970296, -0.16, -0.004, 0.068)
+mesh = SubResource("BoxMesh_feather_secondary")
+
+[node name="FeatherTertiary3" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingL"]
+transform = Transform3D(0.882948, 0, -0.469472, 0, 1, 0, 0.469472, 0, 0.882948, -0.13, -0.01, 0.135)
+mesh = SubResource("BoxMesh_feather_tertiary")
+
+[node name="FeatherInner4" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingL"]
+transform = Transform3D(0.743145, 0, -0.669131, 0, 1, 0, 0.669131, 0, 0.743145, -0.095, -0.016, 0.195)
+mesh = SubResource("BoxMesh_feather_inner")
+
+[node name="WingR" type="Node3D" parent="MeshRoot/ScarabBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.11, 0.055, -0.04)
+
+[node name="LeadingBar" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingR"]
+transform = Transform3D(0.173648, -0.984808, 0, 0.984808, 0.173648, 0, 0, 0, 1, 0.18, 0.008, -0.032)
+mesh = SubResource("CapsuleMesh_wing_spar")
+
+[node name="FeatherPrimary1" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingR"]
+transform = Transform3D(0.996195, 0, 0.087156, 0, 1, 0, -0.087156, 0, 0.996195, 0.18, 0.002, 0)
+mesh = SubResource("BoxMesh_feather_primary")
+
+[node name="FeatherTip1" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingR"]
+transform = Transform3D(0.996195, 0, 0.087156, 0, 1, 0, -0.087156, 0, 0.996195, 0.36, 0.004, 0.018)
+mesh = SubResource("BoxMesh_feather_tip")
+
+[node name="FeatherSecondary2" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingR"]
+transform = Transform3D(0.970296, 0, 0.241922, 0, 1, 0, -0.241922, 0, 0.970296, 0.16, -0.004, 0.068)
+mesh = SubResource("BoxMesh_feather_secondary")
+
+[node name="FeatherTertiary3" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingR"]
+transform = Transform3D(0.882948, 0, 0.469472, 0, 1, 0, -0.469472, 0, 0.882948, 0.13, -0.01, 0.135)
+mesh = SubResource("BoxMesh_feather_tertiary")
+
+[node name="FeatherInner4" type="MeshInstance3D" parent="MeshRoot/ScarabBody/WingR"]
+transform = Transform3D(0.743145, 0, 0.669131, 0, 1, 0, -0.669131, 0, 0.743145, 0.095, -0.016, 0.195)
+mesh = SubResource("BoxMesh_feather_inner")
+
+[node name="OuterHalo" type="Node3D" parent="MeshRoot"]
+
+[node name="OuterRing" type="MeshInstance3D" parent="MeshRoot/OuterHalo"]
+mesh = SubResource("TorusMesh_outer_ring")
+
+[node name="GemN" type="MeshInstance3D" parent="MeshRoot/OuterHalo"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.454)
+mesh = SubResource("SphereMesh_halo_stud")
+
+[node name="GemS" type="MeshInstance3D" parent="MeshRoot/OuterHalo"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.454)
+mesh = SubResource("SphereMesh_halo_stud")
+
+[node name="GemE" type="MeshInstance3D" parent="MeshRoot/OuterHalo"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.454, 0, 0)
+mesh = SubResource("SphereMesh_halo_stud")
+
+[node name="GemW" type="MeshInstance3D" parent="MeshRoot/OuterHalo"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.454, 0, 0)
+mesh = SubResource("SphereMesh_halo_stud")
+
+[node name="InnerHalo" type="Node3D" parent="MeshRoot"]
+transform = Transform3D(0.882948, -0.469472, 0, 0.469472, 0.882948, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="InnerRing" type="MeshInstance3D" parent="MeshRoot/InnerHalo"]
+mesh = SubResource("TorusMesh_inner_ring")
+
+[node name="SparkleParticles" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.58, 0)
+cast_shadow = 0
+amount = 14
+lifetime = 1.25
+randomness = 0.4
+mesh = SubResource("SphereMesh_sparkle")
+emission_shape = 1
+emission_sphere_radius = 0.4
+direction = Vector3(0, 1, 0)
+spread = 40.0
+gravity = Vector3(0, 0.45, 0)
+initial_velocity_min = 0.15
+initial_velocity_max = 0.45
+scale_amount_curve = SubResource("Curve_sparkle_scale")
+color_ramp = SubResource("Gradient_sparkle_color")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.68, 0)
-light_color = Color(0.25, 0.88, 1, 1)
-light_energy = 1.85
-omni_range = 3.4
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+light_color = Color(0.32, 0.9, 1, 1)
+light_energy = 1.95
+omni_range = 3.8
